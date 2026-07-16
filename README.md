@@ -58,8 +58,11 @@ cd ~/.dev-toolbox
   selecionados e registra ele via `include.path` no seu `~/.gitconfig` global.
   Rodar `install.sh` de novo regenera esse arquivo - ligar/desligar alias é só
   mudar a seleção e rodar de novo.
-- **shell**: adiciona um `source` condicional dos arquivos de `shell/`
-  selecionados no `~/.bashrc` e `~/.zshrc` (idempotente, não duplica linha).
+- **shell**: gera `shell/aliases.local.sh` (gitignored) só com os itens
+  selecionados e garante um `source` desse arquivo único no `~/.bashrc` e
+  `~/.zshrc` (idempotente, não duplica linha). Mesmo padrão do git -
+  desmarcar um item some do arquivo gerado automaticamente, sem precisar
+  editar o rc file a mão.
 
 ## Itens disponíveis
 
@@ -86,7 +89,8 @@ dev-toolbox/
 │       ├── alias.gitconfig       # `chain = !bash {{ROOT}}/git/chain/script.sh`
 │       └── README.md             # doc dedicada do alias
 └── shell/
-    └── <id>/                     # (a criar) mesmo padrão: script.sh/aliases.sh + README.md
+    ├── aliases.local.sh          # GERADO, gitignored - não editar a mão
+    └── <id>/                     # (a criar) mesmo padrão: aliases.sh + README.md
 ```
 
 ## Adicionar um alias novo
@@ -101,8 +105,3 @@ dev-toolbox/
 1. Criar `shell/<id>/` com `aliases.sh` (funções/aliases) e `README.md`.
 2. Linha nova em `MANIFEST`: `<id>|shell|shell/<id>/aliases.sh|<nome>|<description>`.
 3. `./install.sh` de novo.
-
-> Limitação conhecida: desmarcar um item **shell** já instalado não remove a
-> linha de `source` do `.bashrc`/`.zshrc` sozinho (o item git some do arquivo
-> gerado automaticamente, o shell hoje não). Remover a mão se precisar - sem
-> uso real disso ainda, revisitar quando houver mais de um item shell.

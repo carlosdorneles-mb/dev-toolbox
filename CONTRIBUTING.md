@@ -59,6 +59,6 @@ docs(chain): document --no-pr flag
 
 1. Apagar o diretório (`git/<id>/` ou `shell/<id>/`).
 2. Remover a linha correspondente do `MANIFEST`.
-3. Rodar `./install.sh` — o item some do `aliases.local.gitconfig` gerado
-   automaticamente (git). Pra shell, remover manualmente a linha `source`
-   adicionada em `~/.bashrc`/`~/.zshrc` (limitação conhecida, ver README).
+3. Rodar `./install.sh` — o item some sozinho do arquivo gerado
+   (`git/aliases.local.gitconfig` ou `shell/aliases.local.sh`, conforme o
+   tipo). Nada a editar a mão em `~/.bashrc`/`~/.zshrc`/`~/.gitconfig`.

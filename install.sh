@@ -137,15 +137,24 @@ fi
 
 echo "${GREEN}✔${RESET} git aliases ${GREEN}ok${RESET} ${DIM}-> $GIT_CONFIG_GENERATED (via include.path no ~/.gitconfig)${RESET}"
 
-# --- shell (bash + zsh) - dá source em cada arquivo shell selecionado ---
-for i in "${!ids[@]}"; do
-  [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
-
-  f="$ROOT/${paths[$i]}"
-  for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    [[ -f "$rc" ]] || continue
-    grep -qF "$f" "$rc" || printf '\n[ -f "%s" ] && source "%s"\n' "$f" "$f" >> "$rc"
+# --- shell (bash + zsh) - concatena itens shell selecionados num unico
+# arquivo gerado (mesmo padrao do git acima). O .bashrc/.zshrc so sourca
+# esse arquivo gerado (uma linha fixa, adicionada uma vez) - desmarcar um
+# item some do arquivo gerado sozinho, sem precisar tocar no rc de novo.
+SHELL_CONFIG_GENERATED="$ROOT/shell/aliases.local.sh"
+mkdir -p "$ROOT/shell"
+{
+  for i in "${!ids[@]}"; do
+    [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
+    cat "$ROOT/${paths[$i]}"
+    echo ""
   done
+} > "$SHELL_CONFIG_GENERATED"
+
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  [[ -f "$rc" ]] || continue
+  grep -qF "$SHELL_CONFIG_GENERATED" "$rc" || \
+    printf '\n[ -f "%s" ] && source "%s"\n' "$SHELL_CONFIG_GENERATED" "$SHELL_CONFIG_GENERATED" >> "$rc"
 done
 
 echo ""
