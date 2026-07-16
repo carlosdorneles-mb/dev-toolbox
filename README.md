@@ -8,7 +8,7 @@ local + `git pull` pra atualizar - sem copiar arquivo, sem reinstalar pacote.
 ### Via curl (recomendado)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mercadobitcoin/dev-toolbox/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash
 ```
 
 Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado) e abre um
@@ -31,7 +31,7 @@ seleção - serve tanto pra sincronizar quanto pra ligar/desligar itens.
 ### Local (clone próprio, sem curl)
 
 ```bash
-git clone git@github.com:mercadobitcoin/dev-toolbox.git ~/.dev-toolbox
+git clone git@github.com:carlosdorneles-mb/dev-toolbox.git ~/.dev-toolbox
 cd ~/.dev-toolbox
 ./install.sh --interactive   # ou sem a flag pra instalar tudo direto
 ```

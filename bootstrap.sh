@@ -9,7 +9,7 @@
 # reabre a seleção, com o que já estava instalado pré-marcado.
 set -euo pipefail
 
-REPO_URL="${DEV_TOOLBOX_REPO_URL:-https://github.com/mercadobitcoin/dev-toolbox.git}"
+REPO_URL="${DEV_TOOLBOX_REPO_URL:-https://github.com/carlosdorneles-mb/dev-toolbox.git}"
 INSTALL_DIR="${DEV_TOOLBOX_DIR:-$HOME/.dev-toolbox}"
 
 if [[ -d "$INSTALL_DIR/.git" ]]; then
