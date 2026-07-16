@@ -10,6 +10,13 @@
 # fica salva em .installed e é reaproveitada como padrão da próxima vez.
 set -euo pipefail
 
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+  BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
+  GREEN=$'\e[32m'; CYAN=$'\e[36m'; YELLOW=$'\e[33m'
+else
+  BOLD=""; DIM=""; RESET=""; GREEN=""; CYAN=""; YELLOW=""
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="$ROOT/MANIFEST"
 STATE_FILE="$ROOT/.installed"
@@ -75,7 +82,7 @@ _select_with_prompt() {
   local -A new_selected
 
   echo ""
-  echo "dev-toolbox - itens disponíveis:"
+  echo "${BOLD}${CYAN}dev-toolbox${RESET} - itens disponíveis:"
   echo ""
 
   for i in "${!ids[@]}"; do
@@ -91,7 +98,7 @@ _select_with_prompt() {
   choice="${choice//,/ }"
   for n in $choice; do
     if [[ ! "$n" =~ ^[0-9]+$ ]]; then
-      echo "aviso: '$n' ignorado (não é um número válido)" >&2
+      echo "${YELLOW}⚠ aviso:${RESET} '$n' ignorado (não é um número válido)" >&2
       continue
     fi
 
@@ -128,7 +135,7 @@ if ! grep -qF "$GIT_CONFIG_GENERATED" "$HOME/.gitconfig" 2>/dev/null; then
   git config --global --add include.path "$GIT_CONFIG_GENERATED"
 fi
 
-echo "git aliases ok -> $GIT_CONFIG_GENERATED (via include.path no ~/.gitconfig)"
+echo "${GREEN}✔${RESET} git aliases ${GREEN}ok${RESET} ${DIM}-> $GIT_CONFIG_GENERATED (via include.path no ~/.gitconfig)${RESET}"
 
 # --- shell (bash + zsh) - dá source em cada arquivo shell selecionado ---
 for i in "${!ids[@]}"; do
@@ -141,5 +148,6 @@ for i in "${!ids[@]}"; do
   done
 done
 
-echo "dev-toolbox instalado/atualizado."
-echo "abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem."
+echo ""
+echo "${GREEN}${BOLD}✔ dev-toolbox instalado/atualizado.${RESET}"
+echo "${DIM}abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem.${RESET}"

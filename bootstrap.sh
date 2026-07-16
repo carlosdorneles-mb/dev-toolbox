@@ -9,14 +9,20 @@
 # reabre a seleção, com o que já estava instalado pré-marcado.
 set -euo pipefail
 
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+  BOLD=$'\e[1m'; RESET=$'\e[0m'; CYAN=$'\e[36m'
+else
+  BOLD=""; RESET=""; CYAN=""
+fi
+
 REPO_URL="${DEV_TOOLBOX_REPO_URL:-https://github.com/carlosdorneles-mb/dev-toolbox.git}"
 INSTALL_DIR="${DEV_TOOLBOX_DIR:-$HOME/.dev-toolbox}"
 
 if [[ -d "$INSTALL_DIR/.git" ]]; then
-  echo "dev-toolbox já clonado em $INSTALL_DIR - atualizando..."
+  echo "${CYAN}↻${RESET} ${BOLD}dev-toolbox${RESET} já clonado em $INSTALL_DIR - atualizando..."
   git -C "$INSTALL_DIR" pull --quiet
 else
-  echo "clonando dev-toolbox em $INSTALL_DIR..."
+  echo "${CYAN}⇣${RESET} clonando ${BOLD}dev-toolbox${RESET} em $INSTALL_DIR..."
   git clone --quiet "$REPO_URL" "$INSTALL_DIR"
 fi
 
