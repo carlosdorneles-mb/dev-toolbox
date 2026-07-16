@@ -1,0 +1,1 @@
+chain = !bash {{ROOT}}/git/chain/script.sh

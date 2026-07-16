@@ -1,0 +1,370 @@
+#!/bin/bash
+
+tree_mode=1
+no_pr=0
+for arg in "$@"; do
+  [[ "$arg" == "-h" || "$arg" == "--help" ]] && show_help=1
+  [[ "$arg" == "--no-color" ]] && NO_COLOR=1
+  [[ "$arg" == "--inline" ]] && tree_mode=0
+  [[ "$arg" == "--no-pr" ]] && no_pr=1
+done
+
+if [[ -n "$show_help" ]]; then
+  cat <<'EOF'
+git chain - mostra a cadeia de branches (stack de PRs) da branch atual até main
+
+Uso:
+  git chain [--no-color] [--inline] [--no-pr]
+
+Descrição:
+  Percorre a branch atual até a branch raiz (main/master, ou a default
+  branch do remote), resolvendo o parent de cada branch pela base
+  declarada da PR (gh pr view --json baseRefName). Sem PR aberta, cai no
+  fallback: branch com merge-base mais recente que não seja a própria
+  ponta da branch atual (evita confundir filho/irmão com parent real).
+
+  Para cada branch na cadeia mostra, quando aplicável:
+    #NNN       número da PR, clicável em terminais com suporte a
+               hyperlink OSC 8 (iTerm2, kitty, VSCode, gnome-terminal)
+    ▲N         N commits locais não enviados pro remote (unpushed)
+    ▼N         N commits no remote ainda não trazidos (não pulled)
+    [X]        branch sem remote (nunca deu push)
+    [só remoto]  branch só existe no remote, nunca teve checkout local
+               (achada como parent via PR ou heurística, sem comparar
+               ahead/behind por falta de referência local)
+    [draft]                PR ainda em draft, não pronta pra review
+    [merged]               PR dessa branch já foi mergeada (state MERGED)
+    [closed sem merge]    PR foi fechada sem merge (abandonada)
+    [PR CONFLICTING]      PR aberta tem conflito de merge (mergeable)
+    [✓N]                   PR aberta tem N approvals (1 por revisor, so a
+                          revisao mais recente de cada um conta)
+    [blocked]              PR aberta bloqueada pra merge (checks/aprovacao
+                          faltando, branch protection etc)
+    [REBASE|MERGE|CHERRY-PICK|BISECT IN PROGRESS]   branch atual com uma
+                          dessas operações em andamento (não finalizada)
+    [dirty working tree]  branch atual tem mudanças trackeadas não
+                          commitadas (untracked não conta)
+
+  PR fechada sem merge (CLOSED) não é usada como fonte do parent na
+  cadeia - só PR aberta ou já mergeada são confiáveis pra isso; CLOSED
+  cai no fallback heurístico (a branch pode ter seguido outro rumo).
+
+  Roda "git fetch origin --quiet" antes de comparar ahead/behind, então
+  os números refletem o estado real do remoto no momento da execução.
+
+  Se a cadeia não conseguir chegar até a raiz (parent não resolvido nem
+  por PR nem pela heurística), imprime um aviso em stderr e mostra a
+  cadeia truncada até onde conseguiu.
+
+  Saída colorida (bold no HEAD/main, cyan no #PR, amarelo ▲, vermelho
+  ▼/[X]) quando rodado em terminal interativo; sem cor se a saída for
+  redirecionada/pipada. O link OSC 8 do #PR só é emitido em terminal
+  interativo (nunca em saída redirecionada/pipada, mesmo com cor).
+
+Opções:
+  -h           mostra esta ajuda
+  --no-color   desabilita cores (mesmo efeito de NO_COLOR=1)
+  --inline     mostra a cadeia em uma linha só (com setas →) em vez do
+               modo árvore (padrão, raiz no topo)
+  --no-pr      esconde tudo relacionado a PR (#NNN, draft, merged, closed,
+               conflicting, approvals, blocked) - so a hierarquia de
+               branches + ahead/behind/[X]. A cadeia continua usando o
+               gh por baixo dos panos pra resolver o parent correto,
+               so a exibicao fica mais limpa
+
+  Nota: "git chain --help" não funciona - o git intercepta "--help" para
+  qualquer alias e imprime só a definição dele, sem executar. Use -h.
+
+Exemplos:
+  $ git chain
+  main
+  └─ branch-base #767
+     └─ minha-branch #768 (▼6)
+
+  # modo uma linha só (main primeiro, igual árvore)
+  $ git chain --inline
+  main (▼6) → branch-base #767 → minha-branch #768
+
+  # sem cores (--no-color equivale a NO_COLOR=1)
+  $ git chain --no-color
+  main
+  └─ branch-base #767
+     └─ minha-branch #768 (▼6)
+EOF
+  exit 0
+fi
+
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+  echo "erro: nao esta dentro de um repositorio git" >&2
+  exit 1
+fi
+
+current=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$current" == "HEAD" ]]; then
+  echo "erro: HEAD destacado (detached) - va para uma branch antes de rodar git chain" >&2
+  exit 1
+fi
+
+# dispara o fetch em background ja - nao depende da cadeia resolvida, roda em
+# paralelo com as chamadas gh que vem a seguir em vez de esperar elas acabarem
+git fetch origin --quiet 2>/dev/null &
+_fetch_pid=$!
+
+# raiz da cadeia: default branch do remote, com fallback pra main/master
+root_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+root_branch="${root_branch#origin/}"
+[[ -z "$root_branch" ]] && root_branch="main"
+
+chain=("$current")
+declare -A visited=(["$current"]=1)
+
+# checa "gh" uma unica vez - se nao tiver, pula todas as chamadas de PR direto
+# (senao cada branch tentaria 1-2 chamadas gh fadadas a falhar, so desperdicio)
+_gh_available=0
+command -v gh &>/dev/null && _gh_available=1
+
+# cache dos dados de PR por branch: evita chamar "gh pr view" 2x pro mesmo branch
+declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_merge_status
+
+_fetch_pr_info() {
+  local b="$1"
+  [[ -n "${pr_number[$b]+x}" ]] && return  # ja consultado (mesmo sem PR)
+
+  if (( ! _gh_available )); then
+    pr_number["$b"]=""  # marca como "ja consultado, sem PR" pra nao tentar de novo
+    return
+  fi
+
+  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,state"
+
+  # uma chamada so (nao 2): busca todos os estados e prioriza a PR aberta via
+  # jq, se existir mais de uma pro mesmo branch (ex: fechada antiga + atual)
+  local json
+  json=$(gh pr list --head "$b" --state all --json "$fields" --limit 10 \
+    --jq 'if any(.[]; .state=="OPEN") then ([.[] | select(.state=="OPEN")])[0] else .[0] end' 2>/dev/null)
+
+  pr_state["$b"]=$(jq -r '.state // empty' <<< "$json" 2>/dev/null)
+  if [[ "${pr_state[$b]}" == "OPEN" ]]; then
+    # aprovacoes: 1 por revisor, considerando so a revisao mais recente de cada um
+    pr_approvals["$b"]=$(jq -r '[.latestReviews[]? | select(.state=="APPROVED")] | length' <<< "$json" 2>/dev/null)
+    pr_merge_status["$b"]=$(jq -r '.mergeStateStatus // empty' <<< "$json" 2>/dev/null)
+  fi
+  pr_base["$b"]=$(jq -r '.baseRefName // empty' <<< "$json" 2>/dev/null)
+  pr_number["$b"]=$(jq -r '.number // empty' <<< "$json" 2>/dev/null)
+  pr_url["$b"]=$(jq -r '.url // empty' <<< "$json" 2>/dev/null)
+  pr_mergeable["$b"]=$(jq -r '.mergeable // empty' <<< "$json" 2>/dev/null)
+  pr_draft["$b"]=$(jq -r '.isDraft // false' <<< "$json" 2>/dev/null)
+}
+
+# PR fechada sem merge (CLOSED) e considerada fonte pouco confiavel de parent:
+# branch pode ter seguido vida propria com um parent real diferente depois disso
+_pr_base_trusted() {
+  local b="$1"
+  [[ "${pr_state[$b]}" == "OPEN" || "${pr_state[$b]}" == "MERGED" ]] && echo "${pr_base[$b]}"
+}
+
+# estado local so faz sentido pra branch atual (HEAD) - working tree e rebase/merge/cherry-pick/bisect
+# sao globais do repo, nao por branch
+_git_dir=$(git rev-parse --git-dir 2>/dev/null)
+
+_local_conflict_marker() {
+  if [[ -d "$_git_dir/rebase-merge" || -d "$_git_dir/rebase-apply" ]]; then
+    echo "REBASE"
+  elif [[ -f "$_git_dir/MERGE_HEAD" ]]; then
+    echo "MERGE"
+  elif [[ -f "$_git_dir/CHERRY_PICK_HEAD" ]]; then
+    echo "CHERRY-PICK"
+  elif [[ -f "$_git_dir/BISECT_LOG" ]]; then
+    echo "BISECT"
+  fi
+}
+
+_dirty_worktree() {
+  [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]]
+}
+
+# resolve o ref git usavel pra um nome de branch: prefere local, cai pro remoto
+# (origin/<nome>) se so existir la - cobre parent que nunca teve checkout local
+_ref_for() {
+  local name="$1"
+  if git show-ref --verify --quiet "refs/heads/$name"; then
+    echo "$name"
+  elif git show-ref --verify --quiet "refs/remotes/origin/$name"; then
+    echo "origin/$name"
+  fi
+}
+
+# cache do "for-each-ref": local + remoto (nome canonico sem prefixo origin/),
+# evita rescanear todos os branches a cada iteracao e cobre parent so-remoto
+all_branches=$(
+  {
+    git for-each-ref --format='%(refname:short)' refs/heads/
+    git for-each-ref --format='%(refname:short)' refs/remotes/origin/ | sed 's#^origin/##' | grep -v '^HEAD$'
+  } | sort -u
+)
+
+truncated=0
+while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "master" ]]; do
+  _fetch_pr_info "$current"
+  base="$(_pr_base_trusted "$current")"
+
+  # base declarada na PR mas a branch ja nao existe (local nem remota) - ex: deletada pos-merge
+  if [[ -n "$base" && -z "$(_ref_for "$base")" ]]; then
+    echo "aviso: PR de '$current' aponta pra base '$base', que nao existe mais (local nem remota) - usando heuristica" >&2
+    base=""
+  fi
+
+  # sem PR aberta/confiavel -> fallback: heuristica local por merge-base mais recente
+  if [[ -z "$base" ]]; then
+    best_branch=""
+    best_date=0
+    current_ref=$(_ref_for "$current")
+    current_tip=$(git rev-parse "$current_ref" 2>/dev/null)
+
+    for b in $all_branches; do
+      [[ "$b" == "$current" ]] && continue
+      [[ -n "${visited[$b]+x}" ]] && continue
+
+      b_ref=$(_ref_for "$b")
+      [[ -z "$b_ref" ]] && continue
+
+      mb=$(git merge-base "$current_ref" "$b_ref" 2>/dev/null)
+      [[ -z "$mb" ]] && continue
+
+      # rejeita candidato se mb == tip do current (b e filho/irmao, nao ancestral real)
+      [[ "$mb" == "$current_tip" ]] && continue
+
+      date=$(git show -s --format=%ct "$mb")
+      if (( date > best_date )); then
+        best_date=$date
+        best_branch=$b
+      fi
+    done
+
+    base="$best_branch"
+  fi
+
+  if [[ -z "$base" || -n "${visited[$base]+x}" ]]; then
+    truncated=1
+    break
+  fi
+
+  chain+=("$base")
+  visited["$base"]=1
+  current=$base
+done
+
+if (( truncated )); then
+  echo "aviso: nao foi possivel resolver o parent de '$current' - cadeia truncada" >&2
+fi
+
+wait "$_fetch_pid" 2>/dev/null  # so espera o fetch em background aqui, na hora que o resultado importa
+
+# cores ANSI (desligadas se saida nao for terminal ou se NO_COLOR estiver setado)
+is_tty=0
+[[ -t 1 ]] && is_tty=1
+
+if (( is_tty )) && [[ -z "$NO_COLOR" ]]; then
+  BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
+  CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'
+else
+  BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""
+fi
+
+# monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao
+labels=()
+for ((i=0; i<${#chain[@]}; i++)); do
+  b="${chain[$i]}"
+  label="$b"
+
+  # HEAD (primeiro da chain) e main/master ficam em negrito
+  if [[ "$i" -eq 0 || "$b" == "main" || "$b" == "master" ]]; then
+    label="${BOLD}${label}${RESET}"
+  fi
+
+  (( ! no_pr )) && _fetch_pr_info "$b"
+  if (( ! no_pr )) && [[ -n "${pr_number[$b]}" ]]; then
+    pr_label="#${pr_number[$b]}"
+    # link OSC 8 so em terminal interativo - nunca em saida redirecionada/pipada
+    if (( is_tty )) && [[ -n "${pr_url[$b]}" ]]; then
+      pr_label=$'\e]8;;'"${pr_url[$b]}"$'\e\\'"$pr_label"$'\e]8;;\e\\'
+    fi
+    label="$label ${CYAN}${pr_label}${RESET}"
+
+    if [[ "${pr_draft[$b]}" == "true" ]]; then
+      label="$label ${DIM}[draft]${RESET}"
+    fi
+
+    # state primeiro: PR merged/closed nunca deve ser mostrada como conflitante
+    if [[ "${pr_state[$b]}" == "MERGED" ]]; then
+      label="$label ${DIM}[merged]${RESET}"
+    elif [[ "${pr_state[$b]}" == "CLOSED" ]]; then
+      label="$label ${RED}[closed sem merge]${RESET}"
+    elif [[ "${pr_mergeable[$b]}" == "CONFLICTING" ]]; then
+      label="$label ${RED}${BOLD}[PR CONFLICTING]${RESET}"
+    fi
+
+    # approvals e status de merge so fazem sentido pra PR ainda aberta
+    if [[ "${pr_state[$b]}" == "OPEN" ]]; then
+      (( ${pr_approvals[$b]:-0} > 0 )) && label="$label ${CYAN}[✓${pr_approvals[$b]}]${RESET}"
+
+      [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
+    fi
+  fi
+
+  # estado local so se aplica a branch atual (i==0)
+  if [[ "$i" -eq 0 ]]; then
+    conflict=$(_local_conflict_marker)
+    [[ -n "$conflict" ]] && label="$label ${RED}${BOLD}[$conflict IN PROGRESS]${RESET}"
+
+    _dirty_worktree && label="$label ${YELLOW}[dirty working tree]${RESET}"
+  fi
+
+  has_local=0
+  git show-ref --verify --quiet "refs/heads/$b" && has_local=1
+  has_remote=0
+  git show-ref --verify --quiet "refs/remotes/origin/$b" && has_remote=1
+
+  if (( has_local && has_remote )); then
+    read -r behind ahead <<< "$(git rev-list --left-right --count "origin/$b...$b" 2>/dev/null)"
+    marks=""
+    (( ahead > 0 )) && marks="${marks}${YELLOW}▲${ahead}${RESET} "
+    (( behind > 0 )) && marks="${marks}${RED}▼${behind}${RESET} "
+    if [[ -n "$marks" ]]; then
+      label="$label (${marks% })"
+    fi
+  elif (( has_remote )); then
+    # so existe no remote, nunca teve checkout local - nao da pra comparar ahead/behind
+    label="$label ${DIM}[so remoto]${RESET}"
+  else
+    label="$label ${BOLD}${RED}[X]${RESET}"
+  fi
+
+  labels+=("$label")
+done
+
+if (( tree_mode )); then
+  # chain[0]=atual ... chain[last]=raiz; arvore imprime raiz no topo, entao percorre ao contrario
+  depth=0
+  for ((i=${#chain[@]}-1; i>=0; i--)); do
+    if (( i == ${#chain[@]}-1 )); then
+      echo "${labels[$i]}"
+    else
+      printf '%*s└─ %s\n' "$(((depth-1)*3))" '' "${labels[$i]}"
+    fi
+    ((depth++))
+  done
+else
+  # imprime main -> ... -> branch atual, marcando ahead/behind do remoto
+  # chain[0]=atual ... chain[last]=raiz; percorre ao contrario pra raiz ficar primeiro
+  result=""
+  for ((i=${#chain[@]}-1; i>=0; i--)); do
+    if [[ -z "$result" ]]; then
+      result="${labels[$i]}"
+    else
+      result="$result ${DIM}→${RESET} ${labels[$i]}"
+    fi
+  done
+  echo "$result"
+fi

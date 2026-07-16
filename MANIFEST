@@ -1,0 +1,9 @@
+# dev-toolbox MANIFEST
+# format: id|type|path|entry|description
+# type: git (alias fragment at git/<id>/alias.gitconfig) | shell (source file at shell/<id>/)
+# entry: git alias name, or shell file name (informational)
+# path: always points to the fragment/file inside the item's own git/<id>/ or shell/<id>/ dir
+#
+# add a new item: create the <type>/<id>/ dir (script.sh + alias.gitconfig/aliases.sh + README.md),
+# add a line here.
+chain|git|git/chain/alias.gitconfig|chain|Shows the branch chain (PR stack) from current to main
