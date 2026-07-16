@@ -11,6 +11,12 @@ local + `git pull` pra atualizar - sem copiar arquivo, sem reinstalar pacote.
 curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash
 ```
 
+Pra instalar **tudo direto, sem menu** (ex: provisionamento automatizado):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash -s -- --all
+```
+
 Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado) e abre um
 menu pra escolher quais itens instalar.
 

@@ -7,6 +7,11 @@
 # e chama install.sh em modo interativo, deixando escolher quais aliases
 # instalar. Reexecutar o mesmo comando depois só atualiza (git pull) e
 # reabre a seleção, com o que já estava instalado pré-marcado.
+#
+# Pra instalar tudo direto, sem menu interativo (ex: provisionamento
+# automatizado), passe --all depois do "--" do bash:
+#
+#   curl -fsSL https://raw.githubusercontent.com/<org>/dev-toolbox/main/bootstrap.sh | bash -s -- --all
 set -euo pipefail
 
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
@@ -26,4 +31,8 @@ else
   git clone --quiet "$REPO_URL" "$INSTALL_DIR"
 fi
 
-exec bash "$INSTALL_DIR/install.sh" --interactive
+if [[ "${1:-}" == "--all" ]]; then
+  exec bash "$INSTALL_DIR/install.sh"
+else
+  exec bash "$INSTALL_DIR/install.sh" --interactive
+fi
