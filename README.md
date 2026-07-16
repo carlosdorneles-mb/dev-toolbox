@@ -12,18 +12,34 @@ curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/
 ```
 
 Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado) e abre um
-menu pra escolher quais itens instalar:
+menu pra escolher quais itens instalar.
+
+**Com [`fzf`](https://github.com/junegunn/fzf) instalado** (mesmo binário em
+mac - `brew install fzf` - e linux - `apt`/`pacman`/etc.), o menu vira um
+checklist navegável:
 
 ```
-dev-toolbox - selecione os itens (números separados por espaço/vírgula, 'a' = todos, enter = manter seleção atual):
-
-  [x]  1) chain      Shows the branch chain (PR stack) from current to main
-
->
+dev-toolbox> 
+> chain                          Shows the branch chain (PR stack) from current to main
+  2/2
+TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
 ```
 
-Digite os números desejados (`1 3` ou `1,3`), `a` pra tudo, ou só `enter` pra
-manter a seleção atual (na primeira instalação, tudo vem pré-marcado).
+Navega com as setas, `TAB` marca/desmarca, `CTRL-A`/`CTRL-D` marca/desmarca
+tudo, `ENTER` confirma, `ESC` cancela (mantém a seleção anterior).
+
+**Sem `fzf`**, cai num prompt simples por número:
+
+```
+dev-toolbox - itens disponíveis:
+
+   1) chain      Shows the branch chain (PR stack) from current to main
+
+Números dos itens que deseja instalar (separados por vírgula):
+```
+
+Digite os números desejados (`1 3` ou `1,3`), ou só `enter` pra manter a
+seleção atual (na primeira instalação, tudo vem pré-marcado).
 
 Rodar o mesmo comando de novo no futuro **atualiza** (git pull) e reabre a
 seleção - serve tanto pra sincronizar quanto pra ligar/desligar itens.

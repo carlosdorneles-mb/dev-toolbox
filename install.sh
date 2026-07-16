@@ -40,39 +40,74 @@ else
   for id in "${ids[@]}"; do selected["$id"]=1; done
 fi
 
-if (( INTERACTIVE )); then
+# seleção via fzf (checklist navegável, TAB marca/desmarca, ENTER confirma) -
+# so usada se `fzf` estiver instalado; senao cai no prompt numerico simples.
+# mesma binaria fzf funciona em mac e linux (brew/apt/pacman), sem diferenca
+# de comportamento entre os dois.
+_select_with_fzf() {
+  local -a chosen
+  local line id
+
+  mapfile -t chosen < <(
+    for i in "${!ids[@]}"; do
+      printf '%s\t%s\n' "${ids[$i]}" "${descs[$i]}"
+    done | fzf --multi \
+                --delimiter='\t' \
+                --with-nth=1,2 \
+                --prompt='dev-toolbox> ' \
+                --header='TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual' \
+                --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+                --height='~60%' \
+                --layout=reverse \
+      | cut -f1
+  ) || true
+
+  (( ${#chosen[@]} == 0 )) && return
+
+  selected=()
+  for id in "${chosen[@]}"; do selected["$id"]=1; done
+}
+
+# fallback sem dependencia externa - lista enumerada + prompt de numeros
+# separados por virgula.
+_select_with_prompt() {
+  local i choice n idx k
+  local -A new_selected
+
   echo ""
-  echo "dev-toolbox - selecione os itens (números separados por espaço/vírgula, 'a' = todos, enter = manter seleção atual):"
+  echo "dev-toolbox - itens disponíveis:"
   echo ""
 
   for i in "${!ids[@]}"; do
-    mark=" "
-    [[ -n "${selected[${ids[$i]}]+x}" ]] && mark="x"
-    printf "  [%s] %2d) %-10s %s\n" "$mark" "$((i+1))" "${ids[$i]}" "${descs[$i]}"
+    printf "  %2d) %-10s %s\n" "$((i+1))" "${ids[$i]}" "${descs[$i]}"
   done
 
   echo ""
   choice=""
-  read -r -p "> " choice < /dev/tty || true
+  read -r -p "Números dos itens que deseja instalar (separados por vírgula): " choice < /dev/tty || true
 
-  if [[ -n "$choice" ]]; then
-    if [[ "$choice" == "a" || "$choice" == "all" ]]; then
-      for id in "${ids[@]}"; do selected["$id"]=1; done
-    else
-      declare -A new_selected
-      choice="${choice//,/ }"
-      for n in $choice; do
-        if [[ ! "$n" =~ ^[0-9]+$ ]]; then
-          echo "aviso: '$n' ignorado (não é um número válido)" >&2
-          continue
-        fi
+  [[ -z "$choice" ]] && return
 
-        idx=$((n - 1))
-        (( idx >= 0 && idx < ${#ids[@]} )) && new_selected["${ids[$idx]}"]=1
-      done
-      selected=()
-      for k in "${!new_selected[@]}"; do selected["$k"]=1; done
+  choice="${choice//,/ }"
+  for n in $choice; do
+    if [[ ! "$n" =~ ^[0-9]+$ ]]; then
+      echo "aviso: '$n' ignorado (não é um número válido)" >&2
+      continue
     fi
+
+    idx=$((n - 1))
+    (( idx >= 0 && idx < ${#ids[@]} )) && new_selected["${ids[$idx]}"]=1
+  done
+
+  selected=()
+  for k in "${!new_selected[@]}"; do selected["$k"]=1; done
+}
+
+if (( INTERACTIVE )); then
+  if command -v fzf &>/dev/null; then
+    _select_with_fzf
+  else
+    _select_with_prompt
   fi
 fi
 
