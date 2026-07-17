@@ -1,0 +1,3 @@
+# dependências do próprio dev-toolbox (não de um item específico do MANIFEST).
+# formato: bin|min_version|version_cmd
+fzf|0.30.0|fzf --version

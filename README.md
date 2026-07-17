@@ -58,6 +58,22 @@ cd ~/.dev-toolbox
 ./install.sh --interactive   # ou sem a flag pra instalar tudo direto
 ```
 
+## Dependências
+
+`deps.sh` é genérico - descobre o que checar lendo o `deps` da raiz
+(dependências do toolbox, ex: `fzf`) + o `deps` de cada item do `MANIFEST`
+que tiver um (ex: `git/chain/deps` exige `jq` e `gh`). `install.sh` roda ele
+automaticamente antes de instalar/atualizar - detecta o que já está
+presente (e a versão), instala o que falta e atualiza o que estiver abaixo
+da versão mínima exigida. Suporta **macOS** (via `brew`) e **Ubuntu/Debian**
+(via `apt-get`, incluindo o repo oficial do `gh` quando necessário).
+
+Pra só checar sem instalar nada:
+
+```bash
+./deps.sh --check-only
+```
+
 ## O que o install faz
 
 - **git**: gera `git/aliases.local.gitconfig` (gitignored) só com os aliases
@@ -87,6 +103,7 @@ config e README dedicado lado a lado:
 dev-toolbox/
 ├── bootstrap.sh                  # entrypoint do curl - clona/atualiza + chama install.sh
 ├── install.sh                    # instala/atualiza (local ou via bootstrap), --interactive p/ seleção
+├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh) - chamado pelo install.sh
 ├── MANIFEST                      # catálogo dos itens instaláveis (id|type|path|entry|description)
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO, gitignored - não editar a mão
