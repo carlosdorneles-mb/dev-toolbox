@@ -18,6 +18,12 @@ PR (`gh pr view --json baseRefName`). Sem PR aberta, cai no fallback:
 branch com merge-base mais recente que não seja a própria ponta da branch
 atual (evita confundir filho/irmão com parent real).
 
+Sem `gh` (ou `jq`) instalado, ou com `gh` instalado mas sem login, o script
+funciona normalmente mas sem nenhum dado de PR (`#NNN`, approvals,
+comentários, diffstat etc) - imprime um aviso em stderr avisando o que falta
+instalar/configurar pra ter a experiência completa. Não aparece com
+`--no-pr` (que já dispensa PR de propósito) nem com `--text`.
+
 Pra cada branch na cadeia mostra, quando aplicável:
 
 | Marca | Significado |
@@ -27,11 +33,13 @@ Pra cada branch na cadeia mostra, quando aplicável:
 | `▼N` | N commits no remote ainda não trazidos (não pulled) |
 | `[X]` | branch sem remote (nunca deu push) |
 | `[só remoto]` (`[só remoto via <remote>]` se não for `origin`) | branch só existe no remote, nunca teve checkout local (achada como parent via PR ou heurística) |
+| `[📄N +A/-D]` | PR (aberta ou fechada) tem N arquivos alterados, A linhas adicionadas (verde), D removidas (vermelho) |
 | `[draft]` | PR ainda em draft |
 | `[merged]` | PR dessa branch já foi mergeada |
 | `[closed sem merge]` | PR foi fechada sem merge (abandonada) |
 | `[PR CONFLICTING]` | PR aberta tem conflito de merge |
 | `[👍N/M]` (`[✓N/M]` sem cor) | PR aberta tem N approvals de M revisores designados no total (quem já revisou + quem foi pedido e ainda não revisou; só a revisão mais recente de cada um conta). Com `--no-color`/fora de terminal vira `✓` - emoji tem cor própria e não respeita `NO_COLOR` |
+| `[💬N]` | PR aberta tem N comentários (issue comments, não inclui review comments inline) |
 | `[blocked]` | PR aberta bloqueada pra merge (checks/aprovação faltando, branch protection etc) |
 | `[REBASE\|MERGE\|CHERRY-PICK\|BISECT IN PROGRESS]` | branch atual com uma dessas operações em andamento |
 | `[dirty working tree]` | branch atual tem mudanças trackeadas não commitadas (untracked não conta) |
@@ -69,7 +77,7 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 | `--inline` | mostra a cadeia em uma linha só (com setas `→`) em vez do modo árvore (padrão, raiz no topo) |
 | `--no-pr` | esconde tudo relacionado a PR (`#NNN`, draft, merged, closed, conflicting, approvals, blocked) - só a hierarquia de branches + ahead/behind/`[X]`. A cadeia continua usando o `gh` por baixo dos panos pra resolver o parent correto, só a exibição fica mais limpa |
 | `--text` | só os nomes das branches, um por linha, raiz primeiro - sem cor, sem `#PR`, sem ahead/behind. Pra uso em scripts (ex: `git chain --text \| while read -r b; do ...; done`). Ignora `--no-color`/`--inline`/`--no-pr`/`--json` |
-| `--json` | array JSON com detalhes de cada branch (raiz primeiro): `name`, `is_current`, `is_root`, `pr` (`null` se não houver PR, senão `number`, `url`, `state`, `draft`, `mergeable`, `approvals`, `reviewers_total`, `merge_status`), `has_local`, `has_remote`, `remote` (nome do remote onde a branch foi encontrada, `null` se `has_remote` for `false`), `ahead`, `behind`, `local_conflict` e `dirty_worktree` (os dois últimos só preenchidos na branch atual). Exige `jq` instalado. Combina com `--no-pr` (`pr` vira `null` em todas). Ignora `--no-color`/`--inline`/`--text` |
+| `--json` | array JSON com detalhes de cada branch (raiz primeiro): `name`, `is_current`, `is_root`, `pr` (`null` se não houver PR, senão `number`, `url`, `state`, `draft`, `mergeable`, `approvals`, `reviewers_total`, `merge_status`, `comments`, `changed_files`, `additions`, `deletions`), `has_local`, `has_remote`, `remote` (nome do remote onde a branch foi encontrada, `null` se `has_remote` for `false`), `ahead`, `behind`, `local_conflict` e `dirty_worktree` (os dois últimos só preenchidos na branch atual). Exige `jq` instalado. Combina com `--no-pr` (`pr` vira `null` em todas). Ignora `--no-color`/`--inline`/`--text` |
 
 > `git chain --help` não funciona - o git intercepta `--help` para qualquer
 > alias e imprime só a definição dele, sem executar. Use `-h`.
@@ -115,6 +123,7 @@ $ git chain --json
   {"name": "main", "is_current": false, "is_root": true, "pr": null, ...},
   {"name": "minha-branch", "is_current": true, "is_root": false,
    "pr": {"number": 768, "url": "...", "state": "OPEN",
-          "approvals": 1, "reviewers_total": 2, ...}, ...}
+          "approvals": 1, "reviewers_total": 2, "comments": 3,
+          "changed_files": 5, "additions": 42, "deletions": 7, ...}, ...}
 ]
 ```

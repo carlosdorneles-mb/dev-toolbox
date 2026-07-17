@@ -123,6 +123,23 @@ _add_gh_apt_repo() {
     | $sudo_cmd tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 }
 
+_confirm_gh_install() {
+  # gh e opcional (só usado pelos scripts de PR) - pergunta antes de instalar,
+  # ao contrário de jq/fzf que são exigidos direto pelos scripts do toolbox
+  local action="$1" # install | upgrade
+  local verb="instalar"
+  [[ "$action" == "upgrade" ]] && verb="atualizar"
+
+  if [[ ! -t 0 ]]; then
+    echo "${DIM}  stdin não é um terminal - pulando $verb do gh (rode manualmente se quiser).${RESET}"
+    return 1
+  fi
+
+  local reply
+  read -r -p "  ${YELLOW}?${RESET} $verb o GitHub CLI (gh) agora? [y/N] " reply
+  [[ "$reply" =~ ^[Yy]$ ]]
+}
+
 echo "${BOLD}${CYAN}dev-toolbox${RESET} - verificando dependências (SO detectado: ${BOLD}$OS${RESET})"
 echo ""
 
@@ -136,6 +153,11 @@ for entry in "${DEPS[@]}"; do
     echo "${RED}✘${RESET} ${BOLD}$bin${RESET} não instalado ${DIM}(mínimo: $min_version)${RESET}"
     missing_or_outdated=1
     (( CHECK_ONLY )) && continue
+
+    if [[ "$bin" == "gh" ]] && ! _confirm_gh_install install; then
+      echo "${DIM}  pulando gh - instale manualmente quando quiser (mínimo: $min_version).${RESET}"
+      continue
+    fi
 
     if _install_or_upgrade "$bin" install; then
       echo "${GREEN}✔${RESET} $bin instalado."
@@ -157,6 +179,11 @@ for entry in "${DEPS[@]}"; do
     echo "${YELLOW}⚠${RESET} ${BOLD}$bin${RESET} desatualizado: ${DIM}$current_version${RESET} < $min_version"
     missing_or_outdated=1
     (( CHECK_ONLY )) && continue
+
+    if [[ "$bin" == "gh" ]] && ! _confirm_gh_install upgrade; then
+      echo "${DIM}  pulando atualização do gh - atualize manualmente quando quiser (mínimo: $min_version).${RESET}"
+      continue
+    fi
 
     if _install_or_upgrade "$bin" upgrade; then
       echo "${GREEN}✔${RESET} $bin atualizado."

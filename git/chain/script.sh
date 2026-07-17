@@ -41,6 +41,9 @@ Descrição:
     [só remoto]  branch só existe no remote, nunca teve checkout local
                (achada como parent via PR ou heurística, sem comparar
                ahead/behind por falta de referência local)
+    [📄N +A/-D]             PR aberta ou fechada tem N arquivos alterados,
+                          A linhas adicionadas (verde), D removidas
+                          (vermelho)
     [draft]                PR ainda em draft, não pronta pra review
     [merged]               PR dessa branch já foi mergeada (state MERGED)
     [closed sem merge]    PR foi fechada sem merge (abandonada)
@@ -51,6 +54,8 @@ Descrição:
                           recente de cada revisor conta). Com --no-color
                           (ou fora de terminal) vira [✓N/M] - emoji tem
                           cor propria, nao respeita NO_COLOR
+    [💬N]                   PR aberta tem N comentarios (issue comments,
+                          nao inclui review comments inline)
     [blocked]              PR aberta bloqueada pra merge (checks/aprovacao
                           faltando, branch protection etc)
     [REBASE|MERGE|CHERRY-PICK|BISECT IN PROGRESS]   branch atual com uma
@@ -203,8 +208,22 @@ declare -A visited=(["$current"]=1)
 _gh_available=0
 command -v gh &>/dev/null && command -v jq &>/dev/null && _gh_available=1
 
+# avisa 1x sobre o que falta pra ter dados de PR - so em stderr, so quando
+# a exibicao de PR faz sentido (nao em --text, que ja ignora PR de proposito)
+if (( ! no_pr )) && (( ! text_mode )); then
+  if (( ! _gh_available )); then
+    if ! command -v gh &>/dev/null; then
+      echo "info: 'gh' (GitHub CLI) nao encontrado - instale e rode 'gh auth login' pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
+    elif ! command -v jq &>/dev/null; then
+      echo "info: 'jq' nao encontrado - instale pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
+    fi
+  elif ! gh auth status &>/dev/null; then
+    echo "info: 'gh' instalado mas sem login - rode 'gh auth login' pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
+  fi
+fi
+
 # cache dos dados de PR por branch: evita chamar "gh pr view" 2x pro mesmo branch
-declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_reviewers_total pr_merge_status
+declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_reviewers_total pr_merge_status pr_comments pr_changed_files pr_additions pr_deletions
 
 _fetch_pr_info() {
   local b="$1"
@@ -215,7 +234,7 @@ _fetch_pr_info() {
     return
   fi
 
-  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,reviewRequests,state"
+  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,reviewRequests,state,comments,changedFiles,additions,deletions"
 
   # uma chamada so (nao 2): busca todos os estados e prioriza a PR aberta via
   # jq, se existir mais de uma pro mesmo branch (ex: fechada antiga + atual)
@@ -231,11 +250,15 @@ _fetch_pr_info() {
     # + quem foi pedido mas ainda nao revisou (reviewRequests)
     pr_reviewers_total["$b"]=$(jq -r '((.latestReviews // []) | length) + ((.reviewRequests // []) | length)' <<< "$json" 2>/dev/null)
     pr_merge_status["$b"]=$(jq -r '.mergeStateStatus // empty' <<< "$json" 2>/dev/null)
+    pr_comments["$b"]=$(jq -r '(.comments // []) | length' <<< "$json" 2>/dev/null)
   fi
   pr_base["$b"]=$(jq -r '.baseRefName // empty' <<< "$json" 2>/dev/null)
   pr_number["$b"]=$(jq -r '.number // empty' <<< "$json" 2>/dev/null)
   pr_url["$b"]=$(jq -r '.url // empty' <<< "$json" 2>/dev/null)
   pr_mergeable["$b"]=$(jq -r '.mergeable // empty' <<< "$json" 2>/dev/null)
+  pr_changed_files["$b"]=$(jq -r '.changedFiles // 0' <<< "$json" 2>/dev/null)
+  pr_additions["$b"]=$(jq -r '.additions // 0' <<< "$json" 2>/dev/null)
+  pr_deletions["$b"]=$(jq -r '.deletions // 0' <<< "$json" 2>/dev/null)
   pr_draft["$b"]=$(jq -r '.isDraft // false' <<< "$json" 2>/dev/null)
 }
 
@@ -390,10 +413,10 @@ is_tty=0
 
 if (( is_tty )) && [[ -z "$NO_COLOR" ]]; then
   BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
-  CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'
+  CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'; GREEN=$'\e[32m'
   APPROVE_MARK="👍"
 else
-  BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""
+  BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""; GREEN=""
   APPROVE_MARK="✓"  # emoji tem cor propria (nao respeita NO_COLOR) - sem cor usa so ascii
 fi
 
@@ -421,6 +444,8 @@ for ((i=0; i<${#chain[@]}; i++)); do
     fi
     label="$label ${CYAN}${pr_label}${RESET}"
 
+    (( ${pr_changed_files[$b]:-0} > 0 )) && label="$label ${DIM}[📄${pr_changed_files[$b]} ${GREEN}+${pr_additions[$b]:-0}${RESET}${DIM}/${RED}-${pr_deletions[$b]:-0}${RESET}${DIM}]${RESET}"
+
     if [[ "${pr_draft[$b]}" == "true" ]]; then
       label="$label ${DIM}[draft]${RESET}"
     fi
@@ -437,6 +462,8 @@ for ((i=0; i<${#chain[@]}; i++)); do
     # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
     if [[ "${pr_state[$b]}" == "OPEN" ]]; then
       (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
+
+      (( ${pr_comments[$b]:-0} > 0 )) && label="$label ${CYAN}[💬${pr_comments[$b]}]${RESET}"
 
       [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
     fi
@@ -512,7 +539,11 @@ if (( json_mode )); then
         --argjson approvals "${pr_approvals[$b]:-0}" \
         --argjson reviewers_total "${pr_reviewers_total[$b]:-0}" \
         --arg merge_status "${pr_merge_status[$b]:-}" \
-        '{number: $number, url: $url, state: $state, draft: $draft, mergeable: $mergeable, approvals: $approvals, reviewers_total: $reviewers_total, merge_status: $merge_status}')
+        --argjson comments "${pr_comments[$b]:-0}" \
+        --argjson changed_files "${pr_changed_files[$b]:-0}" \
+        --argjson additions "${pr_additions[$b]:-0}" \
+        --argjson deletions "${pr_deletions[$b]:-0}" \
+        '{number: $number, url: $url, state: $state, draft: $draft, mergeable: $mergeable, approvals: $approvals, reviewers_total: $reviewers_total, merge_status: $merge_status, comments: $comments, changed_files: $changed_files, additions: $additions, deletions: $deletions}')
     fi
 
     local_conflict_val="null"
