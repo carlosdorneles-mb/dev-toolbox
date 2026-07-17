@@ -54,7 +54,7 @@ _dtb_aliases_collect() {
     while IFS= read -r fname; do
       [[ -z "$fname" ]] && continue
       printf 'shell\t%s\t%s\t%s\n' "$fname" "dev-toolbox" "$fname"
-    done < <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*\(\)' "$dtb_func_file" 2>/dev/null | sed 's/()$//')
+    done < <(grep -oE '^[A-Za-z][A-Za-z0-9_]*\(\)' "$dtb_func_file" 2>/dev/null | sed 's/()$//')
   fi
 
   # --- aliases de git ---
