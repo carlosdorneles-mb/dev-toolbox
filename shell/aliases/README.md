@@ -7,6 +7,8 @@ dev-toolbox) e os aliases de git, numa tabela indicando de onde cada um vem.
 
 ```bash
 aliases
+aliases -r | --run
+aliases --only-dev-toolbox
 aliases -h | --help
 ```
 
@@ -35,10 +37,23 @@ Colunas: `TIPO` (`shell`/`git`), `NOME`, `FONTE`, `COMANDO`.
   mostrar o que foi configurado nesses arquivos, não todo alias ativo na
   sessão.
 
+## Menu executável (`-r`/`--run`)
+
+Abre um seletor `fzf` com NOME + COMANDO de cada alias; ao escolher um e
+apertar ENTER, executa na hora - alias `git` roda como `git <nome>`, alias
+de shell roda via `eval` do comando (mesmo texto que aparece na tabela).
+ESC cancela sem executar nada. Requer `fzf` instalado (ver `deps.sh`).
+
+## `--only-dev-toolbox`
+
+Filtra a tabela (ou o menu do `-r`/`--run`) só pros aliases com
+FONTE=dev-toolbox, escondendo os de `~/.bashrc`/`~/.zshrc`/`~/.gitconfig`.
+
 ## Requisitos
 
-Nenhuma dependência externa - só `bash`/`zsh`, `awk` e `git` (esse último só
-pra listar os aliases de git; sem ele, a tabela sai só com os de shell).
+Nenhuma dependência externa pra listagem - só `bash`/`zsh`, `awk` e `git`
+(esse último só pra listar os aliases de git; sem ele, a tabela sai só com
+os de shell). O `-r`/`--run` precisa de `fzf` instalado.
 
 ## Exemplo
 
