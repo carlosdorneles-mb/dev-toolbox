@@ -3,10 +3,11 @@
 # maquina.
 #
 # Uso: update
+# Uso: update --only-dev-toolbox
 # Uso: update -h | --help
 update() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Uso: update"
+    echo "Uso: update [--only-dev-toolbox]"
     echo ""
     echo "Atualiza o proprio dev-toolbox (git pull + re-instala se mudou),"
     echo "pacotes do sistema (apt/brew) e ferramentas de dev instaladas"
@@ -15,12 +16,16 @@ update() {
     echo "mas), pulando qualquer uma nao presente na maquina."
     echo "Blocos especificos de apt/dpkg/systemctl so rodam no linux;"
     echo "'mas' (Mac App Store) so no macOS."
+    echo ""
+    echo "--only-dev-toolbox roda so o bloco de git pull + re-instala do"
+    echo "proprio dev-toolbox, pulando pacotes do sistema e demais ferramentas."
     return 0
   fi
 
-  source "{{ROOT}}/shell/_lib/log.sh"
+  local only_dev_toolbox=0
+  [[ "${1:-}" == "--only-dev-toolbox" ]] && only_dev_toolbox=1
 
-  sudo -v
+  source "{{ROOT}}/shell/_lib/log.sh"
 
   local os
   case "$(uname -s)" in
@@ -28,7 +33,12 @@ update() {
     *) os="linux" ;;
   esac
 
-  dtb_log_banner "Iniciando atualização do sistema..."
+  if [[ "$only_dev_toolbox" -eq 0 ]]; then
+    sudo -v
+    dtb_log_banner "Iniciando atualização do sistema..."
+  else
+    dtb_log_banner "Atualizando só o dev-toolbox..."
+  fi
   echo ""
 
   # dev-toolbox (git pull + re-instala, idempotente)
@@ -39,6 +49,12 @@ update() {
     else
       dtb_log_err "Falha ao atualizar dev-toolbox (git pull). Verifique alterações locais não commitadas."
     fi
+  fi
+
+  if [[ "$only_dev_toolbox" -eq 1 ]]; then
+    echo ""
+    dtb_log_banner "dev-toolbox atualizado."
+    return 0
   fi
 
   # APT (Ubuntu/Debian - inexistente no macOS, onde o Homebrew abaixo cobre

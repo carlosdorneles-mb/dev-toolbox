@@ -8,8 +8,13 @@ qualquer uma que não esteja presente.
 
 ```bash
 update
+update --only-dev-toolbox
 update -h | --help
 ```
+
+`--only-dev-toolbox` roda só o bloco de git pull + reinstala do próprio
+dev-toolbox, pulando pacotes do sistema e demais ferramentas (não pede
+`sudo`).
 
 ## Descrição
 
