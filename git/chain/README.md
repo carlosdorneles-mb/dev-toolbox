@@ -7,7 +7,7 @@ Mostra a cadeia de branches (stack de PRs) da branch atual até a `main`.
 ## Uso
 
 ```bash
-git chain [--no-color] [--inline] [--no-pr]
+git chain [--no-color] [--inline] [--no-pr] [--text | --json]
 ```
 
 ## Descrição
@@ -31,7 +31,7 @@ Pra cada branch na cadeia mostra, quando aplicável:
 | `[merged]` | PR dessa branch já foi mergeada |
 | `[closed sem merge]` | PR foi fechada sem merge (abandonada) |
 | `[PR CONFLICTING]` | PR aberta tem conflito de merge |
-| `[✓N]` | PR aberta tem N approvals (1 por revisor, só a revisão mais recente de cada um conta) |
+| `[✓N/M]` | PR aberta tem N approvals de M revisores designados no total (quem já revisou + quem foi pedido e ainda não revisou; só a revisão mais recente de cada um conta) |
 | `[blocked]` | PR aberta bloqueada pra merge (checks/aprovação faltando, branch protection etc) |
 | `[REBASE\|MERGE\|CHERRY-PICK\|BISECT IN PROGRESS]` | branch atual com uma dessas operações em andamento |
 | `[dirty working tree]` | branch atual tem mudanças trackeadas não commitadas (untracked não conta) |
@@ -60,6 +60,8 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
 | `--inline` | mostra a cadeia em uma linha só (com setas `→`) em vez do modo árvore (padrão, raiz no topo) |
 | `--no-pr` | esconde tudo relacionado a PR (`#NNN`, draft, merged, closed, conflicting, approvals, blocked) - só a hierarquia de branches + ahead/behind/`[X]`. A cadeia continua usando o `gh` por baixo dos panos pra resolver o parent correto, só a exibição fica mais limpa |
+| `--text` | só os nomes das branches, um por linha, raiz primeiro - sem cor, sem `#PR`, sem ahead/behind. Pra uso em scripts (ex: `git chain --text \| while read -r b; do ...; done`). Ignora `--no-color`/`--inline`/`--no-pr`/`--json` |
+| `--json` | array JSON com detalhes de cada branch (raiz primeiro): `name`, `is_current`, `is_root`, `pr` (`null` se não houver PR, senão `number`, `url`, `state`, `draft`, `mergeable`, `approvals`, `reviewers_total`, `merge_status`), `has_local`, `has_remote`, `ahead`, `behind`, `local_conflict` e `dirty_worktree` (os dois últimos só preenchidos na branch atual). Exige `jq` instalado. Combina com `--no-pr` (`pr` vira `null` em todas). Ignora `--no-color`/`--inline`/`--text` |
 
 > `git chain --help` não funciona - o git intercepta `--help` para qualquer
 > alias e imprime só a definição dele, sem executar. Use `-h`.
@@ -72,6 +74,8 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
   local de branches (sem número/status de PR). Se `gh` estiver ausente, o
   script pula essas chamadas e nunca invoca `jq` - por isso os dois são
   opcionais juntos, não um sem o outro.
+- **`--json` exige `jq`** (não é mais opcional nesse modo específico) - sem
+  ele o script sai com erro antes de resolver a cadeia.
 
 ## Exemplos
 
@@ -90,4 +94,19 @@ $ git chain --no-color
 main
 └─ branch-base #767
    └─ minha-branch #768 (▼6)
+
+# só os nomes, raiz primeiro, um por linha
+$ git chain --text
+main
+branch-base
+minha-branch
+
+# detalhes em JSON
+$ git chain --json
+[
+  {"name": "main", "is_current": false, "is_root": true, "pr": null, ...},
+  {"name": "minha-branch", "is_current": true, "is_root": false,
+   "pr": {"number": 768, "url": "...", "state": "OPEN",
+          "approvals": 1, "reviewers_total": 2, ...}, ...}
+]
 ```

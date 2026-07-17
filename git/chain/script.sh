@@ -2,19 +2,28 @@
 
 tree_mode=1
 no_pr=0
+text_mode=0
+json_mode=0
 for arg in "$@"; do
   [[ "$arg" == "-h" || "$arg" == "--help" ]] && show_help=1
   [[ "$arg" == "--no-color" ]] && NO_COLOR=1
   [[ "$arg" == "--inline" ]] && tree_mode=0
   [[ "$arg" == "--no-pr" ]] && no_pr=1
+  [[ "$arg" == "--text" ]] && text_mode=1
+  [[ "$arg" == "--json" ]] && json_mode=1
 done
+
+if (( json_mode )) && ! command -v jq &>/dev/null; then
+  echo "erro: --json exige 'jq' instalado" >&2
+  exit 1
+fi
 
 if [[ -n "$show_help" ]]; then
   cat <<'EOF'
 git chain - mostra a cadeia de branches (stack de PRs) da branch atual até main
 
 Uso:
-  git chain [--no-color] [--inline] [--no-pr]
+  git chain [--no-color] [--inline] [--no-pr] [--text | --json]
 
 Descrição:
   Percorre a branch atual até a branch raiz (main/master, ou a default
@@ -36,8 +45,10 @@ Descrição:
     [merged]               PR dessa branch já foi mergeada (state MERGED)
     [closed sem merge]    PR foi fechada sem merge (abandonada)
     [PR CONFLICTING]      PR aberta tem conflito de merge (mergeable)
-    [✓N]                   PR aberta tem N approvals (1 por revisor, so a
-                          revisao mais recente de cada um conta)
+    [✓N/M]                 PR aberta tem N approvals de M revisores
+                          designados no total (quem ja revisou + quem foi
+                          pedido e ainda nao revisou; so a revisao mais
+                          recente de cada revisor conta)
     [blocked]              PR aberta bloqueada pra merge (checks/aprovacao
                           faltando, branch protection etc)
     [REBASE|MERGE|CHERRY-PICK|BISECT IN PROGRESS]   branch atual com uma
@@ -71,6 +82,18 @@ Opções:
                branches + ahead/behind/[X]. A cadeia continua usando o
                gh por baixo dos panos pra resolver o parent correto,
                so a exibicao fica mais limpa
+  --text       so os nomes das branches, um por linha, raiz primeiro -
+               sem cor, sem #PR, sem ahead/behind. Pra uso em scripts
+               (ex: "git chain --text | while read -r b; do ...; done").
+               Ignora --no-color/--inline/--no-pr/--json.
+  --json       array JSON com detalhes de cada branch (raiz primeiro):
+               name, is_current, is_root, pr (null se não houver: number,
+               url, state, draft, mergeable, approvals, reviewers_total,
+               merge_status),
+               has_local, has_remote, ahead, behind, local_conflict e
+               dirty_worktree (os dois últimos só preenchidos na branch
+               atual). Exige "jq" instalado. Combina com --no-pr (pr vira
+               null em todas). Ignora --no-color/--inline/--text.
 
   Nota: "git chain --help" não funciona - o git intercepta "--help" para
   qualquer alias e imprime só a definição dele, sem executar. Use -h.
@@ -90,6 +113,20 @@ Exemplos:
   main
   └─ branch-base #767
      └─ minha-branch #768 (▼6)
+
+  # só os nomes, raiz primeiro, um por linha
+  $ git chain --text
+  main
+  branch-base
+  minha-branch
+
+  # detalhes em JSON
+  $ git chain --json
+  [
+    {"name": "main", "is_current": false, "is_root": true, "pr": null, ...},
+    {"name": "minha-branch", "is_current": true, "is_root": false,
+     "pr": {"number": 768, "url": "...", "state": "OPEN", ...}, ...}
+  ]
 EOF
   exit 0
 fi
@@ -125,7 +162,7 @@ _gh_available=0
 command -v gh &>/dev/null && _gh_available=1
 
 # cache dos dados de PR por branch: evita chamar "gh pr view" 2x pro mesmo branch
-declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_merge_status
+declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_reviewers_total pr_merge_status
 
 _fetch_pr_info() {
   local b="$1"
@@ -136,7 +173,7 @@ _fetch_pr_info() {
     return
   fi
 
-  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,state"
+  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,reviewRequests,state"
 
   # uma chamada so (nao 2): busca todos os estados e prioriza a PR aberta via
   # jq, se existir mais de uma pro mesmo branch (ex: fechada antiga + atual)
@@ -148,6 +185,9 @@ _fetch_pr_info() {
   if [[ "${pr_state[$b]}" == "OPEN" ]]; then
     # aprovacoes: 1 por revisor, considerando so a revisao mais recente de cada um
     pr_approvals["$b"]=$(jq -r '[.latestReviews[]? | select(.state=="APPROVED")] | length' <<< "$json" 2>/dev/null)
+    # total de revisores designados: quem ja revisou (latestReviews, 1 por pessoa)
+    # + quem foi pedido mas ainda nao revisou (reviewRequests)
+    pr_reviewers_total["$b"]=$(jq -r '((.latestReviews // []) | length) + ((.reviewRequests // []) | length)' <<< "$json" 2>/dev/null)
     pr_merge_status["$b"]=$(jq -r '.mergeStateStatus // empty' <<< "$json" 2>/dev/null)
   fi
   pr_base["$b"]=$(jq -r '.baseRefName // empty' <<< "$json" 2>/dev/null)
@@ -261,6 +301,15 @@ fi
 
 wait "$_fetch_pid" 2>/dev/null  # so espera o fetch em background aqui, na hora que o resultado importa
 
+# --text: so os nomes, raiz primeiro, sem cor/PR/ahead-behind - sai direto,
+# nao precisa dos dados que os outros modos calculam a seguir
+if (( text_mode )); then
+  for ((i=${#chain[@]}-1; i>=0; i--)); do
+    echo "${chain[$i]}"
+  done
+  exit 0
+fi
+
 # cores ANSI (desligadas se saida nao for terminal ou se NO_COLOR estiver setado)
 is_tty=0
 [[ -t 1 ]] && is_tty=1
@@ -273,7 +322,11 @@ else
 fi
 
 # monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao
+# (--json reaproveita os dados coletados aqui, sem chamadas git/gh extras)
 labels=()
+declare -A ahead_map behind_map has_local_map has_remote_map
+current_conflict=""
+current_dirty=0
 for ((i=0; i<${#chain[@]}; i++)); do
   b="${chain[$i]}"
   label="$b"
@@ -305,9 +358,9 @@ for ((i=0; i<${#chain[@]}; i++)); do
       label="$label ${RED}${BOLD}[PR CONFLICTING]${RESET}"
     fi
 
-    # approvals e status de merge so fazem sentido pra PR ainda aberta
+    # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
     if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-      (( ${pr_approvals[$b]:-0} > 0 )) && label="$label ${CYAN}[✓${pr_approvals[$b]}]${RESET}"
+      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[✓${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
 
       [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
     fi
@@ -316,16 +369,24 @@ for ((i=0; i<${#chain[@]}; i++)); do
   # estado local so se aplica a branch atual (i==0)
   if [[ "$i" -eq 0 ]]; then
     conflict=$(_local_conflict_marker)
+    current_conflict="$conflict"
     [[ -n "$conflict" ]] && label="$label ${RED}${BOLD}[$conflict IN PROGRESS]${RESET}"
 
-    _dirty_worktree && label="$label ${YELLOW}[dirty working tree]${RESET}"
+    if _dirty_worktree; then
+      current_dirty=1
+      label="$label ${YELLOW}[dirty working tree]${RESET}"
+    fi
   fi
 
   has_local=0
   git show-ref --verify --quiet "refs/heads/$b" && has_local=1
   has_remote=0
   git show-ref --verify --quiet "refs/remotes/origin/$b" && has_remote=1
+  has_local_map["$b"]=$has_local
+  has_remote_map["$b"]=$has_remote
 
+  ahead=""
+  behind=""
   if (( has_local && has_remote )); then
     read -r behind ahead <<< "$(git rev-list --left-right --count "origin/$b...$b" 2>/dev/null)"
     marks=""
@@ -340,9 +401,57 @@ for ((i=0; i<${#chain[@]}; i++)); do
   else
     label="$label ${BOLD}${RED}[X]${RESET}"
   fi
+  ahead_map["$b"]="$ahead"
+  behind_map["$b"]="$behind"
 
   labels+=("$label")
 done
+
+if (( json_mode )); then
+  json_items=()
+  for ((i=${#chain[@]}-1; i>=0; i--)); do
+    b="${chain[$i]}"
+    is_current=$( [[ "$i" -eq 0 ]] && echo true || echo false )
+    is_root=$( [[ "$b" == "$root_branch" || "$b" == "main" || "$b" == "master" ]] && echo true || echo false )
+
+    pr_json="null"
+    if [[ -n "${pr_number[$b]:-}" ]]; then
+      pr_json=$(jq -n \
+        --argjson number "${pr_number[$b]}" \
+        --arg url "${pr_url[$b]:-}" \
+        --arg state "${pr_state[$b]:-}" \
+        --argjson draft "$( [[ "${pr_draft[$b]:-}" == "true" ]] && echo true || echo false )" \
+        --arg mergeable "${pr_mergeable[$b]:-}" \
+        --argjson approvals "${pr_approvals[$b]:-0}" \
+        --argjson reviewers_total "${pr_reviewers_total[$b]:-0}" \
+        --arg merge_status "${pr_merge_status[$b]:-}" \
+        '{number: $number, url: $url, state: $state, draft: $draft, mergeable: $mergeable, approvals: $approvals, reviewers_total: $reviewers_total, merge_status: $merge_status}')
+    fi
+
+    local_conflict_val="null"
+    [[ "$i" -eq 0 && -n "$current_conflict" ]] && local_conflict_val="\"$current_conflict\""
+    dirty_val=$( [[ "$i" -eq 0 && "$current_dirty" -eq 1 ]] && echo true || echo false )
+
+    ahead_val="${ahead_map[$b]:-}"
+    behind_val="${behind_map[$b]:-}"
+
+    json_items+=("$(jq -n \
+      --arg name "$b" \
+      --argjson is_current "$is_current" \
+      --argjson is_root "$is_root" \
+      --argjson pr "$pr_json" \
+      --argjson has_local "$( [[ "${has_local_map[$b]:-0}" -eq 1 ]] && echo true || echo false )" \
+      --argjson has_remote "$( [[ "${has_remote_map[$b]:-0}" -eq 1 ]] && echo true || echo false )" \
+      --argjson ahead "$( [[ -n "$ahead_val" ]] && echo "$ahead_val" || echo null )" \
+      --argjson behind "$( [[ -n "$behind_val" ]] && echo "$behind_val" || echo null )" \
+      --argjson local_conflict "$local_conflict_val" \
+      --argjson dirty_worktree "$dirty_val" \
+      '{name: $name, is_current: $is_current, is_root: $is_root, pr: $pr, has_local: $has_local, has_remote: $has_remote, ahead: $ahead, behind: $behind, local_conflict: $local_conflict, dirty_worktree: $dirty_worktree}')")
+  done
+
+  printf '%s\n' "${json_items[@]}" | jq -s '.'
+  exit 0
+fi
 
 if (( tree_mode )); then
   # chain[0]=atual ... chain[last]=raiz; arvore imprime raiz no topo, entao percorre ao contrario
