@@ -7,3 +7,4 @@
 # add a new item: create the <type>/<id>/ dir (script.sh + alias.gitconfig/aliases.sh + README.md),
 # add a line here.
 chain|git|git/chain/alias.gitconfig|chain|Shows the branch chain (PR stack) from current to main
+aliases|shell|shell/aliases/aliases.sh|aliases|Lists all shell and git aliases in a table, showing their source

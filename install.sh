@@ -40,14 +40,20 @@ while IFS='|' read -r id type path _entry desc || [[ -n "$id" ]]; do
   descs+=("$desc")
 done < "$MANIFEST"
 
+# modo nao-interativo instala/atualiza TUDO, sempre - .installed so serve de
+# pre-selecao pro checklist do --interactive (respeita o que foi desmarcado
+# antes), nunca pra restringir uma rodada sem --interactive. Sem isso, um
+# item novo no MANIFEST (ex: apos "git pull") nunca seria instalado sozinho
+# pra quem ja tinha um .installed de uma selecao anterior.
 declare -A selected
-if [[ -f "$STATE_FILE" ]]; then
+for id in "${ids[@]}"; do selected["$id"]=1; done
+
+if (( INTERACTIVE )) && [[ -f "$STATE_FILE" ]]; then
+  selected=()
   while read -r id; do
     [[ -z "$id" ]] && continue
     selected["$id"]=1
   done < "$STATE_FILE"
-else
-  for id in "${ids[@]}"; do selected["$id"]=1; done
 fi
 
 # seleção via fzf (checklist navegável, TAB marca/desmarca, ENTER confirma) -
@@ -149,7 +155,7 @@ mkdir -p "$ROOT/shell"
 {
   for i in "${!ids[@]}"; do
     [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
-    cat "$ROOT/${paths[$i]}"
+    sed "s#{{ROOT}}#$ROOT#g" "$ROOT/${paths[$i]}"
     echo ""
   done
 } > "$SHELL_CONFIG_GENERATED"
@@ -159,6 +165,8 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
   grep -qF "$SHELL_CONFIG_GENERATED" "$rc" || \
     printf '\n[ -f "%s" ] && source "%s"\n' "$SHELL_CONFIG_GENERATED" "$SHELL_CONFIG_GENERATED" >> "$rc"
 done
+
+echo "${GREEN}✔${RESET} shell aliases ${GREEN}ok${RESET} ${DIM}-> $SHELL_CONFIG_GENERATED (sourced no ~/.bashrc/~/.zshrc)${RESET}"
 
 echo ""
 echo "${GREEN}${BOLD}✔ dev-toolbox instalado/atualizado.${RESET}"

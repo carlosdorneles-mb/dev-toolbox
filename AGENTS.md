@@ -27,6 +27,7 @@ config e README lado a lado:
 dev-toolbox/
 ├── bootstrap.sh                  # entrypoint via curl: clona/atualiza ~/.dev-toolbox + chama install.sh --interactive
 ├── install.sh                    # instala/atualiza (local ou via bootstrap); --interactive p/ seleção granular
+├── uninstall.sh                  # inverso do install.sh - remove entradas deste clone do ~/.gitconfig e ~/.bashrc/~/.zshrc
 ├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh); chamado pelo install.sh
 ├── MANIFEST                      # catálogo dos itens instaláveis: id|type|path|entry|description
 ├── git/
@@ -36,7 +37,8 @@ dev-toolbox/
 │       ├── alias.gitconfig       # `<nome> = !bash {{ROOT}}/git/<id>/script.sh` (placeholder {{ROOT}} substituído no install)
 │       └── README.md             # doc dedicada do alias (uso, flags, exemplos)
 └── shell/
-    └── <id>/                     # mesmo padrão pra aliases/funções de shell (ainda a criar)
+    ├── aliases.local.sh          # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
+    └── <id>/                     # mesmo padrão pra aliases/funções de shell (ex: shell/aliases/)
         ├── aliases.sh
         └── README.md
 ```
@@ -73,15 +75,16 @@ antes de sincronizar os aliases e segue em modo degradado se algo falhar.
 
 ## Placeholder `{{ROOT}}`
 
-Todo `alias.gitconfig` usa `{{ROOT}}` no lugar do path absoluto do clone.
-`install.sh` substitui isso via `sed` na hora de gerar
-`git/aliases.local.gitconfig` — isso é o que permite o mesmo repo funcionar
-em qualquer máquina/path de clone sem edição manual. Nunca hardcodar path
-absoluto num `alias.gitconfig` versionado.
+Todo `alias.gitconfig` e `aliases.sh` usa `{{ROOT}}` no lugar do path
+absoluto do clone. `install.sh` substitui isso via `sed` na hora de gerar
+`git/aliases.local.gitconfig` e `shell/aliases.local.sh` — isso é o que
+permite o mesmo repo funcionar em qualquer máquina/path de clone sem edição
+manual. Nunca hardcodar path absoluto num `alias.gitconfig`/`aliases.sh`
+versionado.
 
 ## O que evitar
 
-- Editar `git/aliases.local.gitconfig` ou `.installed` a mão (são gerados; mudança se perde no próximo `install.sh`).
-- Path absoluto hardcoded em `alias.gitconfig` (usar sempre `{{ROOT}}`).
+- Editar `git/aliases.local.gitconfig`, `shell/aliases.local.sh` ou `.installed` a mão (são gerados; mudança se perde no próximo `install.sh`).
+- Path absoluto hardcoded em `alias.gitconfig`/`aliases.sh` (usar sempre `{{ROOT}}`).
 - Alias novo sem entrada correspondente no `MANIFEST` (fica invisível pro menu interativo de `install.sh --interactive`/`bootstrap.sh`).
 - Lógica de negócio pesada dentro do `install.sh`/`bootstrap.sh` — eles só orquestram (seleção, geração de config, source); a lógica do alias em si vive no `script.sh` do próprio item.

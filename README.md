@@ -27,6 +27,7 @@ checklist navegável:
 ```
 dev-toolbox> 
 > chain                          Shows the branch chain (PR stack) from current to main
+  aliases                        Lists all shell and git aliases in a table, showing their source
   2/2
 TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
 ```
@@ -40,6 +41,7 @@ tudo, `ENTER` confirma, `ESC` cancela (mantém a seleção anterior).
 dev-toolbox - itens disponíveis:
 
    1) chain      Shows the branch chain (PR stack) from current to main
+   2) aliases    Lists all shell and git aliases in a table, showing their source
 
 Números dos itens que deseja instalar (separados por vírgula):
 ```
@@ -57,6 +59,24 @@ git clone git@github.com:carlosdorneles-mb/dev-toolbox.git ~/.dev-toolbox
 cd ~/.dev-toolbox
 ./install.sh --interactive   # ou sem a flag pra instalar tudo direto
 ```
+
+## Desinstalar
+
+```bash
+./uninstall.sh   # ou: make uninstall
+```
+
+Remove do `~/.gitconfig` o `include.path` deste clone, a linha de source do
+`~/.bashrc`/`~/.zshrc`, os arquivos gerados e o `.installed`. Idempotente -
+rodar de novo sem erro se já tiver sido desinstalado.
+
+Só afeta entradas apontando pra **este** clone (este path). Se o dev-toolbox
+já foi instalado a partir de mais de um clone/path (ex: `~/.dev-toolbox` e um
+clone local em paralelo, ou um path antigo que já foi movido/apagado), cada
+um deixa sua própria entrada em `~/.gitconfig`/`~/.bashrc`/`~/.zshrc` - rode
+`./uninstall.sh` a partir de cada um pra limpar tudo, ou edite os arquivos a
+mão removendo as linhas correspondentes. É a causa mais comum de alias
+duplicado (ex: `git chain` aparecendo mais de uma vez).
 
 ## Dependências
 
@@ -87,9 +107,10 @@ Pra só checar sem instalar nada:
 
 ## Itens disponíveis
 
-| id      | tipo | descrição                                                        |
-|---------|------|-------------------------------------------------------------------|
-| `chain` | git  | `git chain` - mostra a cadeia de branches (stack de PRs) até main. Requer `gh` autenticado pra exibir número/status de PR (funciona sem, só com hierarquia de branches). Ver [`git/chain/README.md`](git/chain/README.md). |
+| id        | tipo  | descrição                                                        |
+|-----------|-------|-------------------------------------------------------------------|
+| `chain`   | git   | `git chain` - mostra a cadeia de branches (stack de PRs) até main. Requer `gh` autenticado pra exibir número/status de PR (funciona sem, só com hierarquia de branches). Ver [`git/chain/README.md`](git/chain/README.md). |
+| `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
 
 `MANIFEST` é a fonte da verdade que o install lê (em inglês, formato fixo).
 
@@ -112,7 +133,9 @@ dev-toolbox/
 │       └── README.md             # doc dedicada do alias
 └── shell/
     ├── aliases.local.sh          # GERADO, gitignored - não editar a mão
-    └── <id>/                     # (a criar) mesmo padrão: aliases.sh + README.md
+    └── aliases/                  # um dir por alias/função de shell
+        ├── aliases.sh            # implementação (`aliases() { ... }`)
+        └── README.md             # doc dedicada do alias
 ```
 
 ## Adicionar um alias novo
@@ -124,6 +147,6 @@ dev-toolbox/
 4. `./install.sh` pra sincronizar local (ou pull + `./install.sh --interactive` em outra máquina).
 
 **shell:**
-1. Criar `shell/<id>/` com `aliases.sh` (funções/aliases) e `README.md`.
+1. Criar `shell/<id>/` com `aliases.sh` (função/alias, pode usar `{{ROOT}}`) e `README.md`.
 2. Linha nova em `MANIFEST`: `<id>|shell|shell/<id>/aliases.sh|<nome>|<description>`.
-3. `./install.sh` de novo.
+3. `./install.sh` pra sincronizar.
