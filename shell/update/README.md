@@ -1,7 +1,8 @@
 # update
 
-Atualiza pacotes do sistema e ferramentas de dev instaladas na máquina, uma
-por uma, pulando qualquer uma que não esteja presente.
+Atualiza o próprio dev-toolbox (git pull + re-instala se mudou), pacotes do
+sistema e ferramentas de dev instaladas na máquina, uma por uma, pulando
+qualquer uma que não esteja presente.
 
 ## Uso
 
@@ -16,6 +17,10 @@ Pede a senha do `sudo` uma vez no início (`sudo -v`) e roda em sequência,
 cada bloco só se o binário correspondente existir na máquina
 (`command -v <bin>`):
 
+- **dev-toolbox** - `git pull --ff-only` no próprio repo, depois roda
+  `install.sh` de novo (idempotente, pega novos aliases/scripts do
+  MANIFEST mesmo sem mudança); se houver alterações locais não
+  commitadas o pull falha e o comando avisa e segue com o resto
 - **APT** (`apt update && apt upgrade`) - sempre roda, sem checagem prévia;
   o `apt update` dessa etapa é reaproveitado pelos blocos `--only-upgrade`
   mais abaixo (VS Code, Sublime, Podman, GitHub CLI), que não repetem o

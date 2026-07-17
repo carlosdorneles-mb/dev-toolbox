@@ -8,6 +8,6 @@
 # add a line here.
 chain|git|git/chain/alias.gitconfig|chain|Shows the branch chain (PR stack) from current to main
 aliases|shell|shell/aliases/script.sh|aliases|Lists all shell and git aliases in a table, showing their source; -r/--run opens an fzf menu to pick and execute one, --only-dev-toolbox filters to just this repo's aliases
-update|shell|shell/update/script.sh|update|Updates system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
+update|shell|shell/update/script.sh|update|Updates dev-toolbox itself (git pull + reinstall), system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
 kinfo|shell|shell/kinfo/script.sh|kinfo|Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted
 fix-network|shell|shell/fix-network/script.sh|fix_network|Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)

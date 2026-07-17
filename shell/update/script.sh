@@ -8,10 +8,11 @@ update() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Uso: update"
     echo ""
-    echo "Atualiza pacotes do sistema (apt/brew) e ferramentas de dev"
-    echo "instaladas (uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup,"
-    echo "pipx, cursor, vscode, sublime, podman, gh+extensions, docker"
-    echo "desktop, mas), pulando qualquer uma nao presente na maquina."
+    echo "Atualiza o proprio dev-toolbox (git pull + re-instala se mudou),"
+    echo "pacotes do sistema (apt/brew) e ferramentas de dev instaladas"
+    echo "(uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx,"
+    echo "cursor, vscode, sublime, podman, gh+extensions, docker desktop,"
+    echo "mas), pulando qualquer uma nao presente na maquina."
     echo "Blocos especificos de apt/dpkg/systemctl so rodam no linux;"
     echo "'mas' (Mac App Store) so no macOS."
     return 0
@@ -29,6 +30,16 @@ update() {
 
   dtb_log_banner "Iniciando atualização do sistema..."
   echo ""
+
+  # dev-toolbox (git pull + re-instala, idempotente)
+  if [[ -d "{{ROOT}}/.git" ]]; then
+    dtb_log_step "Atualizando dev-toolbox..."
+    if git -C "{{ROOT}}" pull --ff-only; then
+      bash "{{ROOT}}/install.sh"
+    else
+      dtb_log_err "Falha ao atualizar dev-toolbox (git pull). Verifique alterações locais não commitadas."
+    fi
+  fi
 
   # APT (Ubuntu/Debian - inexistente no macOS, onde o Homebrew abaixo cobre
   # tanto formulas quanto casks, incluindo os apps GUI checados mais abaixo)
