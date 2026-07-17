@@ -162,4 +162,4 @@ done
 
 echo ""
 echo "${GREEN}${BOLD}✔ dev-toolbox instalado/atualizado.${RESET}"
-echo "${DIM}abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem.${RESET}"
+echo "${DIM}Abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem.${RESET}"
