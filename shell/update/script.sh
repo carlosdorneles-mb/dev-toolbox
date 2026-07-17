@@ -3,7 +3,20 @@
 # maquina.
 #
 # Uso: update
+# Uso: update -h | --help
 update() {
+  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Uso: update"
+    echo ""
+    echo "Atualiza pacotes do sistema (apt/brew) e ferramentas de dev"
+    echo "instaladas (uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup,"
+    echo "pipx, cursor, vscode, sublime, podman, gh+extensions, docker"
+    echo "desktop, mas), pulando qualquer uma nao presente na maquina."
+    echo "Blocos especificos de apt/dpkg/systemctl so rodam no linux;"
+    echo "'mas' (Mac App Store) so no macOS."
+    return 0
+  fi
+
   sudo -v
 
   local os

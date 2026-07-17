@@ -2,6 +2,7 @@
 # indicando de onde cada um vem (dev-toolbox ou outra fonte).
 #
 # Uso: aliases
+# Uso: aliases -h | --help
 #
 # git aliases: origem exata via "git config --show-origin" - sem heuristica.
 # shell aliases: "alias" (builtin) nao guarda origem, entao a fonte e melhor
@@ -11,6 +12,15 @@
 # mostrar o que foi configurado nesses arquivos, nao todo alias ativo na
 # sessao.
 aliases() {
+  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Uso: aliases"
+    echo ""
+    echo "Lista todos os aliases de shell e git numa tabela (TIPO, NOME,"
+    echo "FONTE, COMANDO), indicando se vieram do dev-toolbox ou de outra"
+    echo "fonte (~/.bashrc, ~/.zshrc, ~/.gitconfig etc)."
+    return 0
+  fi
+
   local dtb_root="{{ROOT}}"
   local dtb_shell_file="$dtb_root/shell/aliases.local.sh"
 

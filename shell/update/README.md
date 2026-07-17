@@ -7,6 +7,7 @@ por uma, pulando qualquer uma que não esteja presente.
 
 ```bash
 update
+update -h | --help
 ```
 
 ## Descrição

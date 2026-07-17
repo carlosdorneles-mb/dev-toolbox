@@ -7,6 +7,7 @@ dev-toolbox) e os aliases de git, numa tabela indicando de onde cada um vem.
 
 ```bash
 aliases
+aliases -h | --help
 ```
 
 ## Descrição
