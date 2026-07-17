@@ -68,6 +68,7 @@ antes de sincronizar os aliases e segue em modo degradado se algo falhar.
 - `bash -n <script>.sh` em todo script tocado (falha de sintaxe não pode chegar em `main` - quebra alias de todo mundo que rodar `install.sh`/`bootstrap.sh`).
 - Rodar `shellcheck` se disponível localmente; senão pelo menos revisar manualmente `set -euo pipefail`, quoting de variáveis, e uso de `local`/escopo.
 - Testar o fluxo local: `./install.sh` (idempotente) e, se mexeu em `install.sh`/`bootstrap.sh`, também `./install.sh --interactive`.
+- **Sempre atualizar o `README.md` do próprio item** (`git/<id>/README.md` ou `shell/<id>/README.md`) quando a mudança alterar comportamento, flags, formato de saída ou requisitos do script - README desatualizado é pior que README ausente. Vale também pro `-h`/help embutido no próprio script, quando existir (ex: `git/chain/script.sh`) - os dois têm que contar a mesma história.
 - `git/aliases.local.gitconfig` e `.installed` são gerados e gitignored — nunca commitar.
 
 ## Placeholder `{{ROOT}}`
