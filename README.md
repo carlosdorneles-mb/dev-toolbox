@@ -28,7 +28,8 @@ checklist navegável:
 dev-toolbox> 
 > chain                          Shows the branch chain (PR stack) from current to main
   aliases                        Lists all shell and git aliases in a table, showing their source
-  2/2
+  update                         Updates system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
+  3/3
 TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
 ```
 
@@ -42,6 +43,7 @@ dev-toolbox - itens disponíveis:
 
    1) chain      Shows the branch chain (PR stack) from current to main
    2) aliases    Lists all shell and git aliases in a table, showing their source
+   3) update     Updates system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
 
 Números dos itens que deseja instalar (separados por vírgula):
 ```
@@ -111,6 +113,7 @@ Pra só checar sem instalar nada:
 |-----------|-------|-------------------------------------------------------------------|
 | `chain`   | git   | `git chain` - mostra a cadeia de branches (stack de PRs) até main. Requer `gh` autenticado pra exibir número/status de PR (funciona sem, só com hierarquia de branches). Ver [`git/chain/README.md`](git/chain/README.md). |
 | `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
+| `update`  | shell | `update` - atualiza pacotes do sistema e ferramentas de dev instaladas (apt, brew, uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor, vscode, sublime, podman, gh + extensões, docker desktop, mas), com detecção de SO (Ubuntu/Debian x macOS via `uname`) pra rodar só o que faz sentido em cada um, roda `apt autoremove`/`autoclean` no fim (Linux), pulando qualquer uma ausente. Ver [`shell/update/README.md`](shell/update/README.md). |
 
 `MANIFEST` é a fonte da verdade que o install lê (em inglês, formato fixo).
 
@@ -134,7 +137,7 @@ dev-toolbox/
 └── shell/
     ├── aliases.local.sh          # GERADO, gitignored - não editar a mão
     └── aliases/                  # um dir por alias/função de shell
-        ├── aliases.sh            # implementação (`aliases() { ... }`)
+        ├── script.sh             # implementação (`aliases() { ... }`)
         └── README.md             # doc dedicada do alias
 ```
 
@@ -147,6 +150,6 @@ dev-toolbox/
 4. `./install.sh` pra sincronizar local (ou pull + `./install.sh --interactive` em outra máquina).
 
 **shell:**
-1. Criar `shell/<id>/` com `aliases.sh` (função/alias, pode usar `{{ROOT}}`) e `README.md`.
-2. Linha nova em `MANIFEST`: `<id>|shell|shell/<id>/aliases.sh|<nome>|<description>`.
+1. Criar `shell/<id>/` com `script.sh` (função/alias, pode usar `{{ROOT}}`) e `README.md`.
+2. Linha nova em `MANIFEST`: `<id>|shell|shell/<id>/script.sh|<nome>|<description>`.
 3. `./install.sh` pra sincronizar.

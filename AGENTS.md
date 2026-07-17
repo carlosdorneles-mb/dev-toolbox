@@ -39,7 +39,7 @@ dev-toolbox/
 └── shell/
     ├── aliases.local.sh          # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
     └── <id>/                     # mesmo padrão pra aliases/funções de shell (ex: shell/aliases/)
-        ├── aliases.sh
+        ├── script.sh
         └── README.md
 ```
 
@@ -53,8 +53,8 @@ dev-toolbox/
 5. Rodar `./install.sh` local pra validar antes de commitar.
 
 **shell:**
-1. Criar `shell/<id>/aliases.sh` e `shell/<id>/README.md`.
-2. Linha no `MANIFEST`: `<id>|shell|shell/<id>/aliases.sh|<nome>|<description>`.
+1. Criar `shell/<id>/script.sh` e `shell/<id>/README.md`.
+2. Linha no `MANIFEST`: `<id>|shell|shell/<id>/script.sh|<nome>|<description>`.
 3. `./install.sh` de novo.
 
 ## Dependências externas (`deps.sh`)
@@ -75,16 +75,16 @@ antes de sincronizar os aliases e segue em modo degradado se algo falhar.
 
 ## Placeholder `{{ROOT}}`
 
-Todo `alias.gitconfig` e `aliases.sh` usa `{{ROOT}}` no lugar do path
+Todo `alias.gitconfig` e `script.sh` (shell) usa `{{ROOT}}` no lugar do path
 absoluto do clone. `install.sh` substitui isso via `sed` na hora de gerar
 `git/aliases.local.gitconfig` e `shell/aliases.local.sh` — isso é o que
 permite o mesmo repo funcionar em qualquer máquina/path de clone sem edição
-manual. Nunca hardcodar path absoluto num `alias.gitconfig`/`aliases.sh`
+manual. Nunca hardcodar path absoluto num `alias.gitconfig`/`script.sh`
 versionado.
 
 ## O que evitar
 
 - Editar `git/aliases.local.gitconfig`, `shell/aliases.local.sh` ou `.installed` a mão (são gerados; mudança se perde no próximo `install.sh`).
-- Path absoluto hardcoded em `alias.gitconfig`/`aliases.sh` (usar sempre `{{ROOT}}`).
+- Path absoluto hardcoded em `alias.gitconfig`/`script.sh` (usar sempre `{{ROOT}}`).
 - Alias novo sem entrada correspondente no `MANIFEST` (fica invisível pro menu interativo de `install.sh --interactive`/`bootstrap.sh`).
 - Lógica de negócio pesada dentro do `install.sh`/`bootstrap.sh` — eles só orquestram (seleção, geração de config, source); a lógica do alias em si vive no `script.sh` do próprio item.
