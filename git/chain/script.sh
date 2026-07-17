@@ -461,9 +461,9 @@ for ((i=0; i<${#chain[@]}; i++)); do
 
     # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
     if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
+      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${DIM}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
 
-      (( ${pr_comments[$b]:-0} > 0 )) && label="$label ${CYAN}[💬${pr_comments[$b]}]${RESET}"
+      (( ${pr_comments[$b]:-0} > 0 )) && label="$label ${DIM}[💬${pr_comments[$b]}]${RESET}"
 
       [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
     fi
