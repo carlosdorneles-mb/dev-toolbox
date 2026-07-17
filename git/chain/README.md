@@ -7,7 +7,7 @@ Mostra a cadeia de branches (stack de PRs) da branch atual até a `main`.
 ## Uso
 
 ```bash
-git chain [--no-color] [--inline] [--no-pr] [--text | --json]
+git chain [<branch> | <numero-da-PR>] [--no-color] [--inline] [--no-pr] [--text | --json]
 ```
 
 ## Descrição
@@ -17,6 +17,15 @@ branch do remote), resolvendo o parent de cada branch pela base declarada da
 PR (`gh pr view --json baseRefName`). Sem PR aberta, cai no fallback:
 branch com merge-base mais recente que não seja a própria ponta da branch
 atual (evita confundir filho/irmão com parent real).
+
+Passando um nome de branch ou número de PR como argumento, mostra a cadeia a
+partir dessa branch em vez da atual - sem precisar dar checkout nela.
+Número de PR exige `gh`+`jq` instalados (resolve a branch via
+`gh pr view <numero> --json headRefName`). Marcadores que só fazem sentido
+pra branch com checkout de fato feito (`[dirty working tree]`, rebase/merge
+em andamento) só aparecem se a branch consultada for a mesma que está com
+checkout - se você consulta outra branch, esses marcadores somem dessa
+entrada.
 
 Sem `gh` (ou `jq`) instalado, ou com `gh` instalado mas sem login, o script
 funciona normalmente mas sem nenhum dado de PR (`#NNN`, approvals,
@@ -72,6 +81,8 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 
 | Flag | Efeito |
 |---|---|
+| `<branch>` | mostra a cadeia a partir dessa branch (local ou remota), sem checkout |
+| `<numero-da-PR>` | mostra a cadeia a partir da branch dessa PR (resolvida via `gh`). Só um dos dois - branch ou número - por vez |
 | `-h` | mostra a ajuda embutida no script |
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
 | `--inline` | mostra a cadeia em uma linha só (com setas `→`) em vez do modo árvore (padrão, raiz no topo) |
@@ -104,6 +115,15 @@ main
 # modo uma linha só (main primeiro, igual árvore)
 $ git chain --inline
 main (▼6) → branch-base #767 → minha-branch #768
+
+# cadeia de outra branch, sem dar checkout nela
+$ git chain minha-branch
+main
+└─ branch-base #767
+   └─ minha-branch #768 (▼6)
+
+# cadeia a partir do número da PR
+$ git chain 768
 
 # sem cores (--no-color equivale a NO_COLOR=1)
 $ git chain --no-color

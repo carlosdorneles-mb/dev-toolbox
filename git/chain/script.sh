@@ -4,13 +4,26 @@ tree_mode=1
 no_pr=0
 text_mode=0
 json_mode=0
+target_arg=""
 for arg in "$@"; do
-  [[ "$arg" == "-h" || "$arg" == "--help" ]] && show_help=1
-  [[ "$arg" == "--no-color" ]] && NO_COLOR=1
-  [[ "$arg" == "--inline" ]] && tree_mode=0
-  [[ "$arg" == "--no-pr" ]] && no_pr=1
-  [[ "$arg" == "--text" ]] && text_mode=1
-  [[ "$arg" == "--json" ]] && json_mode=1
+  case "$arg" in
+    -h|--help) show_help=1; continue ;;
+    --no-color) NO_COLOR=1; continue ;;
+    --inline) tree_mode=0; continue ;;
+    --no-pr) no_pr=1; continue ;;
+    --text) text_mode=1; continue ;;
+    --json) json_mode=1; continue ;;
+  esac
+
+  if [[ "$arg" == -* ]]; then
+    echo "erro: opcao desconhecida '$arg'" >&2
+    exit 1
+  fi
+  if [[ -n "$target_arg" ]]; then
+    echo "erro: passe so um branch ou numero de PR por vez ('$target_arg' e '$arg')" >&2
+    exit 1
+  fi
+  target_arg="$arg"
 done
 
 if (( json_mode )) && ! command -v jq &>/dev/null; then
@@ -23,7 +36,7 @@ if [[ -n "$show_help" ]]; then
 git chain - mostra a cadeia de branches (stack de PRs) da branch atual até main
 
 Uso:
-  git chain [--no-color] [--inline] [--no-pr] [--text | --json]
+  git chain [<branch> | <numero-da-PR>] [--no-color] [--inline] [--no-pr] [--text | --json]
 
 Descrição:
   Percorre a branch atual até a branch raiz (main/master, ou a default
@@ -31,6 +44,14 @@ Descrição:
   declarada da PR (gh pr view --json baseRefName). Sem PR aberta, cai no
   fallback: branch com merge-base mais recente que não seja a própria
   ponta da branch atual (evita confundir filho/irmão com parent real).
+
+  Passando um nome de branch ou numero de PR como argumento, mostra a
+  cadeia a partir dessa branch em vez da branch atual (nao precisa fazer
+  checkout nela). Numero de PR exige "gh"+"jq" instalados - a branch e
+  resolvida via "gh pr view <numero> --json headRefName". Marcadores que
+  so fazem sentido pra branch realmente selecionada no worktree (working
+  tree suja, rebase/merge/cherry-pick em andamento) so aparecem se a
+  branch consultada for a mesma que esta com checkout feito.
 
   Para cada branch na cadeia mostra, quando aplicável:
     #NNN       número da PR, clicável em terminais com suporte a
@@ -88,6 +109,11 @@ Descrição:
   interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 
 Opções:
+  <branch>     mostra a cadeia a partir dessa branch (local ou remota),
+               sem precisar dar checkout nela
+  <numero-da-PR>  mostra a cadeia a partir da branch dessa PR - resolvida
+               via "gh pr view <numero> --json headRefName" (exige
+               "gh"+"jq"). So um dos dois (branch ou numero) por vez
   -h           mostra esta ajuda
   --no-color   desabilita cores (mesmo efeito de NO_COLOR=1)
   --inline     mostra a cadeia em uma linha só (com setas →) em vez do
@@ -125,6 +151,15 @@ Exemplos:
   $ git chain --inline
   main (▼6) → branch-base #767 → minha-branch #768
 
+  # cadeia de outra branch, sem dar checkout nela
+  $ git chain minha-branch
+  main
+  └─ branch-base #767
+     └─ minha-branch #768 (▼6)
+
+  # cadeia a partir do numero da PR
+  $ git chain 768
+
   # sem cores (--no-color equivale a NO_COLOR=1)
   $ git chain --no-color
   main
@@ -153,10 +188,10 @@ if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   exit 1
 fi
 
-current=$(git rev-parse --abbrev-ref HEAD)
+real_current=$(git rev-parse --abbrev-ref HEAD)
 
-if [[ "$current" == "HEAD" ]]; then
-  echo "erro: HEAD destacado (detached) - va para uma branch antes de rodar git chain" >&2
+if [[ -z "$target_arg" && "$real_current" == "HEAD" ]]; then
+  echo "erro: HEAD destacado (detached) - va para uma branch antes de rodar git chain, ou passe um branch/PR como argumento" >&2
   exit 1
 fi
 
@@ -198,9 +233,6 @@ if [[ -z "$root_branch" ]]; then
     root_branch="main"
   fi
 fi
-
-chain=("$current")
-declare -A visited=(["$current"]=1)
 
 # checa "gh"+"jq" uma unica vez - sem qualquer um dos dois, pula todas as
 # chamadas de PR direto (senao cada branch tentaria 1-2 chamadas gh + varios
@@ -341,6 +373,34 @@ all_branches=$(
   } | sort -u
 )
 
+# resolve o ponto de partida da cadeia: branch/PR passada por argumento, ou a
+# branch atualmente com checkout feito (comportamento padrao)
+if [[ -n "$target_arg" ]]; then
+  if [[ "$target_arg" =~ ^[0-9]+$ ]]; then
+    if (( ! _gh_available )); then
+      echo "erro: buscar por numero de PR exige 'gh' e 'jq' instalados" >&2
+      exit 1
+    fi
+    resolved_branch=$(gh pr view "$target_arg" --json headRefName --jq .headRefName 2>/dev/null)
+    if [[ -z "$resolved_branch" ]]; then
+      echo "erro: PR #$target_arg nao encontrada (ou sem permissao de acesso)" >&2
+      exit 1
+    fi
+    current="$resolved_branch"
+  else
+    current="$target_arg"
+    if [[ -z "$(_ref_for "$current")" ]]; then
+      echo "erro: branch '$current' nao encontrada (nem local nem em nenhum remote)" >&2
+      exit 1
+    fi
+  fi
+else
+  current="$real_current"
+fi
+
+chain=("$current")
+declare -A visited=(["$current"]=1)
+
 truncated=0
 while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "master" ]]; do
   _fetch_pr_info "$current"
@@ -430,7 +490,8 @@ for ((i=0; i<${#chain[@]}; i++)); do
   b="${chain[$i]}"
   label="$b"
 
-  # HEAD (primeiro da chain) e main/master ficam em negrito
+  # ponta da cadeia (HEAD real, ou a branch/PR passada por argumento) e
+  # main/master ficam em negrito
   if [[ "$i" -eq 0 || "$b" == "main" || "$b" == "master" ]]; then
     label="${BOLD}${label}${RESET}"
   fi
@@ -469,8 +530,10 @@ for ((i=0; i<${#chain[@]}; i++)); do
     fi
   fi
 
-  # estado local so se aplica a branch atual (i==0)
-  if [[ "$i" -eq 0 ]]; then
+  # estado local (working tree, rebase/merge em andamento) so se aplica a
+  # branch com checkout de fato feito - se "b" e uma branch consultada por
+  # argumento (nao a real HEAD), esses marcadores nao fazem sentido pra ela
+  if [[ "$b" == "$real_current" ]]; then
     conflict=$(_local_conflict_marker)
     current_conflict="$conflict"
     [[ -n "$conflict" ]] && label="$label ${RED}${BOLD}[$conflict IN PROGRESS]${RESET}"
@@ -525,7 +588,7 @@ if (( json_mode )); then
   json_items=()
   for ((i=${#chain[@]}-1; i>=0; i--)); do
     b="${chain[$i]}"
-    is_current=$( [[ "$i" -eq 0 ]] && echo true || echo false )
+    is_current=$( [[ "$b" == "$real_current" ]] && echo true || echo false )
     is_root=$( [[ "$b" == "$root_branch" || "$b" == "main" || "$b" == "master" ]] && echo true || echo false )
 
     pr_json="null"
@@ -547,8 +610,8 @@ if (( json_mode )); then
     fi
 
     local_conflict_val="null"
-    [[ "$i" -eq 0 && -n "$current_conflict" ]] && local_conflict_val="\"$current_conflict\""
-    dirty_val=$( [[ "$i" -eq 0 && "$current_dirty" -eq 1 ]] && echo true || echo false )
+    [[ "$b" == "$real_current" && -n "$current_conflict" ]] && local_conflict_val="\"$current_conflict\""
+    dirty_val=$( [[ "$b" == "$real_current" && "$current_dirty" -eq 1 ]] && echo true || echo false )
 
     ahead_val="${ahead_map[$b]:-}"
     behind_val="${behind_map[$b]:-}"
