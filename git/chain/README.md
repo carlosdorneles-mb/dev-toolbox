@@ -26,7 +26,7 @@ Pra cada branch na cadeia mostra, quando aplicável:
 | `▲N` | N commits locais não enviados pro remote (unpushed) |
 | `▼N` | N commits no remote ainda não trazidos (não pulled) |
 | `[X]` | branch sem remote (nunca deu push) |
-| `[só remoto]` | branch só existe no remote, nunca teve checkout local (achada como parent via PR ou heurística) |
+| `[só remoto]` (`[só remoto via <remote>]` se não for `origin`) | branch só existe no remote, nunca teve checkout local (achada como parent via PR ou heurística) |
 | `[draft]` | PR ainda em draft |
 | `[merged]` | PR dessa branch já foi mergeada |
 | `[closed sem merge]` | PR foi fechada sem merge (abandonada) |
@@ -40,8 +40,16 @@ PR fechada sem merge (`CLOSED`) não é usada como fonte do parent na cadeia -
 só PR aberta ou já mergeada são confiáveis pra isso; `CLOSED` cai no
 fallback heurístico (a branch pode ter seguido outro rumo).
 
-Roda `git fetch origin --quiet` antes de comparar ahead/behind, então os
-números refletem o estado real do remoto no momento da execução.
+Roda `git fetch --all --quiet` antes de comparar ahead/behind, então os
+números refletem o estado real dos remotes no momento da execução.
+
+**Múltiplos remotes** (ex: `origin` + `upstream` de um fork): cada branch usa
+seu upstream configurado (`git branch --set-upstream`), se houver; senão o
+script procura o nome da branch em cada remote, preferindo `origin` quando
+existir. A raiz da cadeia (`main`/`master`) usa o `HEAD` do primeiro remote
+resolvível, mesma ordem de preferência. Quando o remote de uma branch não é
+`origin`, isso aparece no marcador (`via <remote>`) e no campo `remote` do
+`--json`.
 
 Se a cadeia não conseguir chegar até a raiz (parent não resolvido nem por PR
 nem pela heurística), imprime um aviso em stderr e mostra a cadeia truncada
@@ -61,7 +69,7 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 | `--inline` | mostra a cadeia em uma linha só (com setas `→`) em vez do modo árvore (padrão, raiz no topo) |
 | `--no-pr` | esconde tudo relacionado a PR (`#NNN`, draft, merged, closed, conflicting, approvals, blocked) - só a hierarquia de branches + ahead/behind/`[X]`. A cadeia continua usando o `gh` por baixo dos panos pra resolver o parent correto, só a exibição fica mais limpa |
 | `--text` | só os nomes das branches, um por linha, raiz primeiro - sem cor, sem `#PR`, sem ahead/behind. Pra uso em scripts (ex: `git chain --text \| while read -r b; do ...; done`). Ignora `--no-color`/`--inline`/`--no-pr`/`--json` |
-| `--json` | array JSON com detalhes de cada branch (raiz primeiro): `name`, `is_current`, `is_root`, `pr` (`null` se não houver PR, senão `number`, `url`, `state`, `draft`, `mergeable`, `approvals`, `reviewers_total`, `merge_status`), `has_local`, `has_remote`, `ahead`, `behind`, `local_conflict` e `dirty_worktree` (os dois últimos só preenchidos na branch atual). Exige `jq` instalado. Combina com `--no-pr` (`pr` vira `null` em todas). Ignora `--no-color`/`--inline`/`--text` |
+| `--json` | array JSON com detalhes de cada branch (raiz primeiro): `name`, `is_current`, `is_root`, `pr` (`null` se não houver PR, senão `number`, `url`, `state`, `draft`, `mergeable`, `approvals`, `reviewers_total`, `merge_status`), `has_local`, `has_remote`, `remote` (nome do remote onde a branch foi encontrada, `null` se `has_remote` for `false`), `ahead`, `behind`, `local_conflict` e `dirty_worktree` (os dois últimos só preenchidos na branch atual). Exige `jq` instalado. Combina com `--no-pr` (`pr` vira `null` em todas). Ignora `--no-color`/`--inline`/`--text` |
 
 > `git chain --help` não funciona - o git intercepta `--help` para qualquer
 > alias e imprime só a definição dele, sem executar. Use `-h`.

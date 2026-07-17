@@ -62,8 +62,16 @@ Descrição:
   cadeia - só PR aberta ou já mergeada são confiáveis pra isso; CLOSED
   cai no fallback heurístico (a branch pode ter seguido outro rumo).
 
-  Roda "git fetch origin --quiet" antes de comparar ahead/behind, então
-  os números refletem o estado real do remoto no momento da execução.
+  Roda "git fetch --all --quiet" antes de comparar ahead/behind, então os
+  números refletem o estado real dos remotes no momento da execução.
+
+  Repo com mais de um remote (ex: origin + upstream de um fork): cada
+  branch usa seu upstream configurado (git branch --set-upstream), se
+  houver; senão o script procura o nome da branch em cada remote,
+  preferindo "origin" quando existir. A raiz da cadeia (main/master) usa
+  o HEAD do primeiro remote resolvível, mesma ordem de preferência.
+  Quando o remote de uma branch não é "origin", isso aparece no marcador
+  ("via <remote>").
 
   Se a cadeia não conseguir chegar até a raiz (parent não resolvido nem
   por PR nem pela heurística), imprime um aviso em stderr e mostra a
@@ -92,10 +100,12 @@ Opções:
                name, is_current, is_root, pr (null se não houver: number,
                url, state, draft, mergeable, approvals, reviewers_total,
                merge_status),
-               has_local, has_remote, ahead, behind, local_conflict e
-               dirty_worktree (os dois últimos só preenchidos na branch
-               atual). Exige "jq" instalado. Combina com --no-pr (pr vira
-               null em todas). Ignora --no-color/--inline/--text.
+               has_local, has_remote, remote (nome do remote onde a branch
+               foi encontrada, null se has_remote for false), ahead,
+               behind, local_conflict e dirty_worktree (os dois últimos só
+               preenchidos na branch atual). Exige "jq" instalado. Combina
+               com --no-pr (pr vira null em todas). Ignora
+               --no-color/--inline/--text.
 
   Nota: "git chain --help" não funciona - o git intercepta "--help" para
   qualquer alias e imprime só a definição dele, sem executar. Use -h.
@@ -146,13 +156,31 @@ if [[ "$current" == "HEAD" ]]; then
 fi
 
 # dispara o fetch em background ja - nao depende da cadeia resolvida, roda em
-# paralelo com as chamadas gh que vem a seguir em vez de esperar elas acabarem
-git fetch origin --quiet 2>/dev/null &
+# paralelo com as chamadas gh que vem a seguir em vez de esperar elas acabarem.
+# --all: repo pode ter mais de um remote (ex: origin + upstream de um fork)
+git fetch --all --quiet 2>/dev/null &
 _fetch_pid=$!
 
-# raiz da cadeia: default branch do remote, com fallback pra main/master
-root_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
-root_branch="${root_branch#origin/}"
+# remotes do repo, com "origin" primeiro se existir - ordem de preferencia
+# usada sempre que uma branch existe em mais de um remote e precisamos
+# escolher um so pra exibir/comparar
+mapfile -t remotes_ordered < <(git remote)
+if printf '%s\n' "${remotes_ordered[@]}" | grep -qx origin; then
+  _others=()
+  for _r in "${remotes_ordered[@]}"; do [[ "$_r" != "origin" ]] && _others+=("$_r"); done
+  remotes_ordered=("origin" "${_others[@]}")
+fi
+
+# raiz da cadeia: default branch do primeiro remote que tiver HEAD resolvivel,
+# com fallback pra main/master
+root_branch=""
+for _r in "${remotes_ordered[@]}"; do
+  _rb=$(git symbolic-ref --short "refs/remotes/$_r/HEAD" 2>/dev/null)
+  if [[ -n "$_rb" ]]; then
+    root_branch="${_rb#"$_r"/}"
+    break
+  fi
+done
 [[ -z "$root_branch" ]] && root_branch="main"
 
 chain=("$current")
@@ -226,23 +254,55 @@ _dirty_worktree() {
   [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]]
 }
 
-# resolve o ref git usavel pra um nome de branch: prefere local, cai pro remoto
-# (origin/<nome>) se so existir la - cobre parent que nunca teve checkout local
+# acha o remote+ref de uma branch, considerando todos os remotes do repo:
+# 1) se a branch e local e tem upstream configurado (git branch --set-upstream),
+#    usa esse - e a fonte mais confiavel de "qual remote e o dela"
+# 2) senao, procura em cada remote (ordem de remotes_ordered) um branch de
+#    mesmo nome
+# saida: "<remote>\t<remote>/<nome>" (tab-separated) ou vazio se nao achou
+_remote_ref_for() {
+  local name="$1" upstream
+  if git show-ref --verify --quiet "refs/heads/$name"; then
+    upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "$name@{upstream}" 2>/dev/null)
+    if [[ -n "$upstream" ]] && git show-ref --verify --quiet "refs/remotes/$upstream"; then
+      printf '%s\t%s\n' "${upstream%%/*}" "$upstream"
+      return
+    fi
+  fi
+
+  local r
+  for r in "${remotes_ordered[@]}"; do
+    if git show-ref --verify --quiet "refs/remotes/$r/$name"; then
+      printf '%s\t%s\n' "$r" "$r/$name"
+      return
+    fi
+  done
+}
+
+# resolve o ref git usavel pra um nome de branch: prefere local, cai pro
+# remoto (de qualquer remote do repo) se so existir la - cobre parent que
+# nunca teve checkout local
 _ref_for() {
   local name="$1"
   if git show-ref --verify --quiet "refs/heads/$name"; then
     echo "$name"
-  elif git show-ref --verify --quiet "refs/remotes/origin/$name"; then
-    echo "origin/$name"
+    return
   fi
+
+  local info
+  info="$(_remote_ref_for "$name")"
+  [[ -n "$info" ]] && echo "${info#*$'\t'}"
 }
 
-# cache do "for-each-ref": local + remoto (nome canonico sem prefixo origin/),
-# evita rescanear todos os branches a cada iteracao e cobre parent so-remoto
+# cache do "for-each-ref": local + remoto de TODOS os remotes (nome canonico
+# sem prefixo de remote), evita rescanear todos os branches a cada iteracao
+# e cobre parent so-remoto (inclusive so existente num remote nao-origin)
 all_branches=$(
   {
     git for-each-ref --format='%(refname:short)' refs/heads/
-    git for-each-ref --format='%(refname:short)' refs/remotes/origin/ | sed 's#^origin/##' | grep -v '^HEAD$'
+    for _r in "${remotes_ordered[@]}"; do
+      git for-each-ref --format='%(refname:short)' "refs/remotes/$_r/" | sed "s#^$_r/##" | grep -v '^HEAD$'
+    done
   } | sort -u
 )
 
@@ -328,7 +388,7 @@ fi
 # monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao
 # (--json reaproveita os dados coletados aqui, sem chamadas git/gh extras)
 labels=()
-declare -A ahead_map behind_map has_local_map has_remote_map
+declare -A ahead_map behind_map has_local_map has_remote_map remote_name_map
 current_conflict=""
 current_dirty=0
 for ((i=0; i<${#chain[@]}; i++)); do
@@ -384,24 +444,35 @@ for ((i=0; i<${#chain[@]}; i++)); do
 
   has_local=0
   git show-ref --verify --quiet "refs/heads/$b" && has_local=1
+
+  remote_info="$(_remote_ref_for "$b")"
+  remote_name=""
+  remote_ref=""
+  [[ -n "$remote_info" ]] && IFS=$'\t' read -r remote_name remote_ref <<< "$remote_info"
   has_remote=0
-  git show-ref --verify --quiet "refs/remotes/origin/$b" && has_remote=1
+  [[ -n "$remote_ref" ]] && has_remote=1
   has_local_map["$b"]=$has_local
   has_remote_map["$b"]=$has_remote
+  remote_name_map["$b"]="$remote_name"
+
+  # so anota o nome do remote quando nao for "origin" - caso comum (1 remote
+  # so, ou origin) fica limpo igual antes; multi-remote fica explicito
+  remote_suffix=""
+  [[ -n "$remote_name" && "$remote_name" != "origin" ]] && remote_suffix=" via ${remote_name}"
 
   ahead=""
   behind=""
   if (( has_local && has_remote )); then
-    read -r behind ahead <<< "$(git rev-list --left-right --count "origin/$b...$b" 2>/dev/null)"
+    read -r behind ahead <<< "$(git rev-list --left-right --count "$remote_ref...$b" 2>/dev/null)"
     marks=""
     (( ahead > 0 )) && marks="${marks}${YELLOW}▲${ahead}${RESET} "
     (( behind > 0 )) && marks="${marks}${RED}▼${behind}${RESET} "
     if [[ -n "$marks" ]]; then
-      label="$label (${marks% })"
+      label="$label (${marks% }${remote_suffix})"
     fi
   elif (( has_remote )); then
     # so existe no remote, nunca teve checkout local - nao da pra comparar ahead/behind
-    label="$label ${DIM}[so remoto]${RESET}"
+    label="$label ${DIM}[so remoto${remote_suffix}]${RESET}"
   else
     label="$label ${BOLD}${RED}[X]${RESET}"
   fi
@@ -446,11 +517,12 @@ if (( json_mode )); then
       --argjson pr "$pr_json" \
       --argjson has_local "$( [[ "${has_local_map[$b]:-0}" -eq 1 ]] && echo true || echo false )" \
       --argjson has_remote "$( [[ "${has_remote_map[$b]:-0}" -eq 1 ]] && echo true || echo false )" \
+      --arg remote "${remote_name_map[$b]:-}" \
       --argjson ahead "$( [[ -n "$ahead_val" ]] && echo "$ahead_val" || echo null )" \
       --argjson behind "$( [[ -n "$behind_val" ]] && echo "$behind_val" || echo null )" \
       --argjson local_conflict "$local_conflict_val" \
       --argjson dirty_worktree "$dirty_val" \
-      '{name: $name, is_current: $is_current, is_root: $is_root, pr: $pr, has_local: $has_local, has_remote: $has_remote, ahead: $ahead, behind: $behind, local_conflict: $local_conflict, dirty_worktree: $dirty_worktree}')")
+      '{name: $name, is_current: $is_current, is_root: $is_root, pr: $pr, has_local: $has_local, has_remote: $has_remote, remote: (if $remote == "" then null else $remote end), ahead: $ahead, behind: $behind, local_conflict: $local_conflict, dirty_worktree: $dirty_worktree}')")
   done
 
   printf '%s\n' "${json_items[@]}" | jq -s '.'
