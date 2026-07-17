@@ -47,28 +47,21 @@ dev-toolbox/
 1. Criar `git/<id>/script.sh` (implementação) e `git/<id>/README.md` (uso, flags, exemplos — mesmo nível de detalhe do `git/chain/README.md`).
 2. Criar `git/<id>/alias.gitconfig` com uma linha: `<nome> = !bash {{ROOT}}/git/<id>/script.sh`.
 3. Adicionar linha no `MANIFEST`: `<id>|git|git/<id>/alias.gitconfig|<nome>|<description em inglês>`.
-4. Se o script exigir binário externo (jq, gh, ...), criar `git/<id>/deps` (formato `bin|min_version|version_cmd`, uma linha por dependência — ver `git/chain/deps`). `deps.sh` descobre e agrega isso sozinho, sem editar `deps.sh`.
+4. Se o script exigir binário externo novo (além de jq/fzf/gh já cobertos), adicionar uma linha no array `DEPS` de `deps.sh`.
 5. Rodar `./install.sh` local pra validar antes de commitar.
 
 **shell:**
 1. Criar `shell/<id>/aliases.sh` e `shell/<id>/README.md`.
 2. Linha no `MANIFEST`: `<id>|shell|shell/<id>/aliases.sh|<nome>|<description>`.
-3. Se precisar de binário externo, criar `shell/<id>/deps` (mesmo formato acima).
-4. `./install.sh` de novo.
+3. `./install.sh` de novo.
 
 ## Dependências externas (`deps.sh`)
 
-`deps.sh` é **genérico** - não conhece nome de dependência nenhum. Ele
-descobre o que checar/instalar lendo:
-- `deps` na raiz: dependências do próprio toolbox (ex: `fzf`, usado pelo
-  `install.sh`), não de um item específico.
-- `<git|shell>/<id>/deps` (opcional, um por item): dependências exigidas só
-  por aquele alias/script (ex: `git/chain/deps` exige `jq` e `gh`).
-
-Nunca adicionar nome de dependência hardcoded dentro de `deps.sh` - isso
-seria lógica de item específico vazando pro orquestrador genérico. Sempre
-criar/editar o arquivo `deps` do item correspondente (ou o da raiz, se for
-dependência do toolbox como um todo).
+`deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
+toolbox (hoje: `jq`, `fzf`, `gh`) via `brew` (macOS) ou `apt-get`
+(Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do próprio script -
+não existe arquivo de configuração externo pra isso. `install.sh` chama ele
+antes de sincronizar os aliases e segue em modo degradado se algo falhar.
 
 ## Antes de commitar
 

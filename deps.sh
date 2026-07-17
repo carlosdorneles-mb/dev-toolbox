@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# Verifica/instala dependências externas exigidas pelos itens do dev-toolbox.
-# Genérico - não conhece nomes de dependência nenhum: descobre tudo lendo
-# arquivos "deps" (um por item, opcional) + um "deps" na raiz (dependências
-# do próprio toolbox, não de um item específico - ex: fzf usado pelo
-# install.sh). Detecta o que já está instalado e a versão; instala o que
-# falta e atualiza o que estiver abaixo da versão mínima exigida.
+# Verifica/instala dependências externas usadas pelos itens do dev-toolbox
+# (jq, fzf, gh, ...). Detecta o que já está instalado e a versão; instala o
+# que falta e atualiza o que estiver abaixo da versão mínima exigida.
 #
 # Uso:
 #   ./deps.sh              # verifica e instala/atualiza o que for preciso
@@ -13,9 +10,6 @@
 #
 # Suporta macOS (via brew) e Ubuntu/Debian (via apt-get). Chamado
 # automaticamente pelo install.sh - rodar direto só é preciso pra depurar.
-#
-# Formato do arquivo "deps" (um por linha): bin|min_version|version_cmd
-# (version_cmd deve imprimir algo que contenha a versão em X.Y(.Z) na saída)
 set -euo pipefail
 
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
@@ -28,42 +22,13 @@ fi
 CHECK_ONLY=0
 [[ "${1:-}" == "--check-only" ]] && CHECK_ONLY=1
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="$ROOT/MANIFEST"
-
-# --- descoberta das dependências (genérica, via arquivos "deps") -----------
-DEPS=()
-
-_collect_deps_file() {
-  local file="$1"
-  [[ -f "$file" ]] || return 0
-
-  local line
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ -z "$line" || "$line" == \#* ]] && continue
-    DEPS+=("$line")
-  done < "$file"
-}
-
-_collect_deps_file "$ROOT/deps"
-
-if [[ -f "$MANIFEST" ]]; then
-  while IFS='|' read -r id _type path _entry _desc || [[ -n "$id" ]]; do
-    [[ -z "$id" || "$id" == \#* ]] && continue
-    _collect_deps_file "$ROOT/$(dirname "$path")/deps"
-  done < "$MANIFEST"
-fi
-
-# dedupe por bin (primeiro campo) - mesmo bin pode ser exigido por >1 item
-declare -A _seen_bin
-_deduped=()
-for entry in "${DEPS[@]}"; do
-  bin="${entry%%|*}"
-  [[ -n "${_seen_bin[$bin]+x}" ]] && continue
-  _seen_bin["$bin"]=1
-  _deduped+=("$entry")
-done
-DEPS=("${_deduped[@]}")
+# bin|min_version|version_cmd (version_cmd deve imprimir algo que contenha
+# a versão em formato X.Y.Z em algum lugar da saída)
+DEPS=(
+  "jq|1.6|jq --version"
+  "fzf|0.30.0|fzf --version"
+  "gh|2.0.0|gh --version"
+)
 
 # --- detecção de SO ---------------------------------------------------------
 OS=""
@@ -160,11 +125,6 @@ _add_gh_apt_repo() {
 
 echo "${BOLD}${CYAN}dev-toolbox${RESET} - verificando dependências (SO detectado: ${BOLD}$OS${RESET})"
 echo ""
-
-if (( ${#DEPS[@]} == 0 )); then
-  echo "${DIM}nenhuma dependência declarada (nem na raiz, nem em itens do MANIFEST).${RESET}"
-  exit 0
-fi
 
 missing_or_outdated=0
 install_failed=0

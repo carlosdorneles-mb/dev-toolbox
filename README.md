@@ -60,13 +60,12 @@ cd ~/.dev-toolbox
 
 ## Dependências
 
-`deps.sh` é genérico - descobre o que checar lendo o `deps` da raiz
-(dependências do toolbox, ex: `fzf`) + o `deps` de cada item do `MANIFEST`
-que tiver um (ex: `git/chain/deps` exige `jq` e `gh`). `install.sh` roda ele
-automaticamente antes de instalar/atualizar - detecta o que já está
-presente (e a versão), instala o que falta e atualiza o que estiver abaixo
-da versão mínima exigida. Suporta **macOS** (via `brew`) e **Ubuntu/Debian**
-(via `apt-get`, incluindo o repo oficial do `gh` quando necessário).
+Alguns itens exigem `jq`, `fzf` e/ou `gh` instalados. `install.sh` roda
+`deps.sh` automaticamente antes de instalar/atualizar - ele detecta o que já
+está presente (e a versão), instala o que falta e atualiza o que estiver
+abaixo da versão mínima exigida. Suporta **macOS** (via `brew`) e
+**Ubuntu/Debian** (via `apt-get`, incluindo o repo oficial do `gh` quando
+necessário).
 
 Pra só checar sem instalar nada:
 
