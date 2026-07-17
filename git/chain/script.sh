@@ -45,7 +45,7 @@ Descrição:
     [merged]               PR dessa branch já foi mergeada (state MERGED)
     [closed sem merge]    PR foi fechada sem merge (abandonada)
     [PR CONFLICTING]      PR aberta tem conflito de merge (mergeable)
-    [✓N/M]                 PR aberta tem N approvals de M revisores
+    [👍N/M]                 PR aberta tem N approvals de M revisores
                           designados no total (quem ja revisou + quem foi
                           pedido e ainda nao revisou; so a revisao mais
                           recente de cada revisor conta)
@@ -360,7 +360,7 @@ for ((i=0; i<${#chain[@]}; i++)); do
 
     # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
     if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[✓${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
+      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[👍${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
 
       [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
     fi
