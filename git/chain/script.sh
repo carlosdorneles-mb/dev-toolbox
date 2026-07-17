@@ -172,7 +172,7 @@ if printf '%s\n' "${remotes_ordered[@]}" | grep -qx origin; then
 fi
 
 # raiz da cadeia: default branch do primeiro remote que tiver HEAD resolvivel,
-# com fallback pra main/master
+# com fallback pra main/master (nessa ordem, se existirem localmente)
 root_branch=""
 for _r in "${remotes_ordered[@]}"; do
   _rb=$(git symbolic-ref --short "refs/remotes/$_r/HEAD" 2>/dev/null)
@@ -181,15 +181,27 @@ for _r in "${remotes_ordered[@]}"; do
     break
   fi
 done
-[[ -z "$root_branch" ]] && root_branch="main"
+if [[ -z "$root_branch" ]]; then
+  if git show-ref --verify --quiet refs/heads/main; then
+    root_branch="main"
+  elif git show-ref --verify --quiet refs/heads/master; then
+    root_branch="master"
+  else
+    # nenhum remote com HEAD resolvivel (falta "git remote set-head") nem
+    # main/master local - default "main" pode nao ser a raiz real do repo
+    echo "aviso: nao foi possivel detectar a branch raiz (remote sem HEAD resolvivel, rode 'git remote set-head <remote> --auto') - assumindo 'main'" >&2
+    root_branch="main"
+  fi
+fi
 
 chain=("$current")
 declare -A visited=(["$current"]=1)
 
-# checa "gh" uma unica vez - se nao tiver, pula todas as chamadas de PR direto
-# (senao cada branch tentaria 1-2 chamadas gh fadadas a falhar, so desperdicio)
+# checa "gh"+"jq" uma unica vez - sem qualquer um dos dois, pula todas as
+# chamadas de PR direto (senao cada branch tentaria 1-2 chamadas gh + varios
+# jq fadados a falhar, so desperdicio de processo)
 _gh_available=0
-command -v gh &>/dev/null && _gh_available=1
+command -v gh &>/dev/null && command -v jq &>/dev/null && _gh_available=1
 
 # cache dos dados de PR por branch: evita chamar "gh pr view" 2x pro mesmo branch
 declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_reviewers_total pr_merge_status
@@ -337,7 +349,7 @@ while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "
       # rejeita candidato se mb == tip do current (b e filho/irmao, nao ancestral real)
       [[ "$mb" == "$current_tip" ]] && continue
 
-      date=$(git show -s --format=%ct "$mb")
+      date=$(git show -s --format=%ct "$mb" 2>/dev/null)
       if (( date > best_date )); then
         best_date=$date
         best_branch=$b
