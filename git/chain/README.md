@@ -147,3 +147,36 @@ $ git chain --json
           "changed_files": 5, "additions": 42, "deletions": 7, ...}, ...}
 ]
 ```
+
+## Estrutura
+
+```
+git/chain/
+├── script.sh                 # entrypoint: parsing, resolução da cadeia, impressão
+└── lib/
+    ├── git.sh                 # helpers de git puro (remotes, refs, estado local, cache de PR)
+    ├── provider.sh            # dispatcher do provider de PR ativo (interface genérica)
+    └── providers/
+        └── github.sh          # provider GitHub (via `gh`+`jq`) - único hoje
+```
+
+Dados de PR (`#NNN`, approvals, comentários, diffstat etc) vêm de um
+**provider** plugável, não direto de `gh`. `script.sh` e `lib/git.sh` só
+chamam a interface genérica em `lib/provider.sh` (`pr_provider_available`,
+`pr_provider_fetch_pr_info`, `pr_provider_resolve_pr_branch`,
+`pr_provider_deps_hint`, `pr_provider_label`) - nunca `gh`/`jq` direto.
+
+Pra suportar outro host de PR (ex: GitLab):
+
+1. Criar `lib/providers/gitlab.sh` com as funções `gitlab_available`,
+   `gitlab_deps_hint`, `gitlab_fetch_pr_info`, `gitlab_resolve_pr_branch`,
+   seguindo a mesma assinatura de `github.sh` (populam as arrays `pr_*`
+   declaradas em `lib/git.sh`).
+2. Em `lib/provider.sh`: adicionar `source` do novo arquivo e um `case` em
+   cada função `pr_provider_*` apontando pro provider certo (hoje é fixo em
+   `github`; dá pra decidir por variável de ambiente `GIT_CHAIN_PROVIDER`
+   ou detectar pelo host do remote).
+
+Nenhum outro arquivo precisa mudar - a cadeia, o fallback heurístico e toda
+a impressão (`tree`/`--inline`/`--text`/`--json`) já são agnósticos de
+provider.

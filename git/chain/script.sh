@@ -1,5 +1,9 @@
 #!/bin/bash
 
+_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_script_dir/lib/provider.sh"
+source "$_script_dir/lib/git.sh"
+
 tree_mode=1
 no_pr=0
 text_mode=0
@@ -108,6 +112,10 @@ Descrição:
   redirecionada/pipada. O link OSC 8 do #PR só é emitido em terminal
   interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 
+  Dados de PR vem de um provider plugavel (só GitHub via "gh" hoje, ver
+  lib/provider.sh) - sem o provider disponível, a cadeia ainda funciona
+  via fallback heurístico, só sem os marcadores de PR.
+
 Opções:
   <branch>     mostra a cadeia a partir dessa branch (local ou remota),
                sem precisar dar checkout nela
@@ -125,8 +133,8 @@ Opções:
   --no-pr      esconde tudo relacionado a PR (#NNN, draft, merged, closed,
                conflicting, approvals, blocked) - so a hierarquia de
                branches + ahead/behind/[X]. A cadeia continua usando o
-               gh por baixo dos panos pra resolver o parent correto,
-               so a exibicao fica mais limpa
+               provider por baixo dos panos pra resolver o parent
+               correto, so a exibicao fica mais limpa
   --text       so os nomes das branches, um por linha, raiz primeiro -
                sem cor, sem #PR, sem ahead/behind. Pra uso em scripts
                (ex: "git chain --text | while read -r b; do ...; done").
@@ -200,192 +208,30 @@ if [[ -z "$target_arg" && "$real_current" == "HEAD" ]]; then
 fi
 
 # dispara o fetch em background ja - nao depende da cadeia resolvida, roda em
-# paralelo com as chamadas gh que vem a seguir em vez de esperar elas acabarem.
-# --all: repo pode ter mais de um remote (ex: origin + upstream de um fork)
+# paralelo com as chamadas do provider que vem a seguir em vez de esperar elas
+# acabarem. --all: repo pode ter mais de um remote (ex: origin + upstream de um fork)
 git fetch --all --quiet 2>/dev/null &
 _fetch_pid=$!
 
-# remotes do repo, com "origin" primeiro se existir - ordem de preferencia
-# usada sempre que uma branch existe em mais de um remote e precisamos
-# escolher um so pra exibir/comparar
-mapfile -t remotes_ordered < <(git remote)
-if printf '%s\n' "${remotes_ordered[@]}" | grep -qx origin; then
-  _others=()
-  for _r in "${remotes_ordered[@]}"; do [[ "$_r" != "origin" ]] && _others+=("$_r"); done
-  remotes_ordered=("origin" "${_others[@]}")
-fi
-
-# raiz da cadeia: default branch do primeiro remote que tiver HEAD resolvivel,
-# com fallback pra main/master (nessa ordem, se existirem localmente)
-root_branch=""
-for _r in "${remotes_ordered[@]}"; do
-  _rb=$(git symbolic-ref --short "refs/remotes/$_r/HEAD" 2>/dev/null)
-  if [[ -n "$_rb" ]]; then
-    root_branch="${_rb#"$_r"/}"
-    break
-  fi
-done
-if [[ -z "$root_branch" ]]; then
-  if git show-ref --verify --quiet refs/heads/main; then
-    root_branch="main"
-  elif git show-ref --verify --quiet refs/heads/master; then
-    root_branch="master"
-  else
-    # nenhum remote com HEAD resolvivel (falta "git remote set-head") nem
-    # main/master local - default "main" pode nao ser a raiz real do repo
-    echo "aviso: nao foi possivel detectar a branch raiz (remote sem HEAD resolvivel, rode 'git remote set-head <remote> --auto') - assumindo 'main'" >&2
-    root_branch="main"
-  fi
-fi
-
-# checa "gh"+"jq" uma unica vez - sem qualquer um dos dois, pula todas as
-# chamadas de PR direto (senao cada branch tentaria 1-2 chamadas gh + varios
-# jq fadados a falhar, so desperdicio de processo)
-_gh_available=0
-command -v gh &>/dev/null && command -v jq &>/dev/null && _gh_available=1
+resolve_remotes_ordered
+resolve_root_branch
+resolve_all_branches
 
 # avisa 1x sobre o que falta pra ter dados de PR - so em stderr, so quando
 # a exibicao de PR faz sentido (nao em --text, que ja ignora PR de proposito)
-if (( ! no_pr )) && (( ! text_mode )); then
-  if (( ! _gh_available )); then
-    if ! command -v gh &>/dev/null; then
-      echo "info: 'gh' (GitHub CLI) nao encontrado - instale e rode 'gh auth login' pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
-    elif ! command -v jq &>/dev/null; then
-      echo "info: 'jq' nao encontrado - instale pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
-    fi
-  elif ! gh auth status &>/dev/null; then
-    echo "info: 'gh' instalado mas sem login - rode 'gh auth login' pra ver dados de PR (#numero, approvals, comentarios, diffstat etc)" >&2
-  fi
+if (( ! no_pr )) && (( ! text_mode )) && ! pr_provider_available; then
+  pr_provider_deps_hint
 fi
-
-# cache dos dados de PR por branch: evita chamar "gh pr view" 2x pro mesmo branch
-declare -A pr_base pr_number pr_url pr_mergeable pr_state pr_draft pr_approvals pr_reviewers_total pr_merge_status pr_comments pr_changed_files pr_additions pr_deletions
-
-_fetch_pr_info() {
-  local b="$1"
-  [[ -n "${pr_number[$b]+x}" ]] && return  # ja consultado (mesmo sem PR)
-
-  if (( ! _gh_available )); then
-    pr_number["$b"]=""  # marca como "ja consultado, sem PR" pra nao tentar de novo
-    return
-  fi
-
-  local fields="baseRefName,number,url,mergeable,isDraft,mergeStateStatus,latestReviews,reviewRequests,state,comments,changedFiles,additions,deletions"
-
-  # uma chamada so (nao 2): busca todos os estados e prioriza a PR aberta via
-  # jq, se existir mais de uma pro mesmo branch (ex: fechada antiga + atual)
-  local json
-  json=$(gh pr list --head "$b" --state all --json "$fields" --limit 10 \
-    --jq 'if any(.[]; .state=="OPEN") then ([.[] | select(.state=="OPEN")])[0] else .[0] end' 2>/dev/null)
-
-  pr_state["$b"]=$(jq -r '.state // empty' <<< "$json" 2>/dev/null)
-  if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-    # aprovacoes: 1 por revisor, considerando so a revisao mais recente de cada um
-    pr_approvals["$b"]=$(jq -r '[.latestReviews[]? | select(.state=="APPROVED")] | length' <<< "$json" 2>/dev/null)
-    # total de revisores designados: quem ja revisou (latestReviews, 1 por pessoa)
-    # + quem foi pedido mas ainda nao revisou (reviewRequests)
-    pr_reviewers_total["$b"]=$(jq -r '((.latestReviews // []) | length) + ((.reviewRequests // []) | length)' <<< "$json" 2>/dev/null)
-    pr_merge_status["$b"]=$(jq -r '.mergeStateStatus // empty' <<< "$json" 2>/dev/null)
-    pr_comments["$b"]=$(jq -r '(.comments // []) | length' <<< "$json" 2>/dev/null)
-  fi
-  pr_base["$b"]=$(jq -r '.baseRefName // empty' <<< "$json" 2>/dev/null)
-  pr_number["$b"]=$(jq -r '.number // empty' <<< "$json" 2>/dev/null)
-  pr_url["$b"]=$(jq -r '.url // empty' <<< "$json" 2>/dev/null)
-  pr_mergeable["$b"]=$(jq -r '.mergeable // empty' <<< "$json" 2>/dev/null)
-  pr_changed_files["$b"]=$(jq -r '.changedFiles // 0' <<< "$json" 2>/dev/null)
-  pr_additions["$b"]=$(jq -r '.additions // 0' <<< "$json" 2>/dev/null)
-  pr_deletions["$b"]=$(jq -r '.deletions // 0' <<< "$json" 2>/dev/null)
-  pr_draft["$b"]=$(jq -r '.isDraft // false' <<< "$json" 2>/dev/null)
-}
-
-# PR fechada sem merge (CLOSED) e considerada fonte pouco confiavel de parent:
-# branch pode ter seguido vida propria com um parent real diferente depois disso
-_pr_base_trusted() {
-  local b="$1"
-  [[ "${pr_state[$b]}" == "OPEN" || "${pr_state[$b]}" == "MERGED" ]] && echo "${pr_base[$b]}"
-}
-
-# estado local so faz sentido pra branch atual (HEAD) - working tree e rebase/merge/cherry-pick/bisect
-# sao globais do repo, nao por branch
-_git_dir=$(git rev-parse --git-dir 2>/dev/null)
-
-_local_conflict_marker() {
-  if [[ -d "$_git_dir/rebase-merge" || -d "$_git_dir/rebase-apply" ]]; then
-    echo "REBASE"
-  elif [[ -f "$_git_dir/MERGE_HEAD" ]]; then
-    echo "MERGE"
-  elif [[ -f "$_git_dir/CHERRY_PICK_HEAD" ]]; then
-    echo "CHERRY-PICK"
-  elif [[ -f "$_git_dir/BISECT_LOG" ]]; then
-    echo "BISECT"
-  fi
-}
-
-_dirty_worktree() {
-  [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]]
-}
-
-# acha o remote+ref de uma branch, considerando todos os remotes do repo:
-# 1) se a branch e local e tem upstream configurado (git branch --set-upstream),
-#    usa esse - e a fonte mais confiavel de "qual remote e o dela"
-# 2) senao, procura em cada remote (ordem de remotes_ordered) um branch de
-#    mesmo nome
-# saida: "<remote>\t<remote>/<nome>" (tab-separated) ou vazio se nao achou
-_remote_ref_for() {
-  local name="$1" upstream
-  if git show-ref --verify --quiet "refs/heads/$name"; then
-    upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "$name@{upstream}" 2>/dev/null)
-    if [[ -n "$upstream" ]] && git show-ref --verify --quiet "refs/remotes/$upstream"; then
-      printf '%s\t%s\n' "${upstream%%/*}" "$upstream"
-      return
-    fi
-  fi
-
-  local r
-  for r in "${remotes_ordered[@]}"; do
-    if git show-ref --verify --quiet "refs/remotes/$r/$name"; then
-      printf '%s\t%s\n' "$r" "$r/$name"
-      return
-    fi
-  done
-}
-
-# resolve o ref git usavel pra um nome de branch: prefere local, cai pro
-# remoto (de qualquer remote do repo) se so existir la - cobre parent que
-# nunca teve checkout local
-_ref_for() {
-  local name="$1"
-  if git show-ref --verify --quiet "refs/heads/$name"; then
-    echo "$name"
-    return
-  fi
-
-  local info
-  info="$(_remote_ref_for "$name")"
-  [[ -n "$info" ]] && echo "${info#*$'\t'}"
-}
-
-# cache do "for-each-ref": local + remoto de TODOS os remotes (nome canonico
-# sem prefixo de remote), evita rescanear todos os branches a cada iteracao
-# e cobre parent so-remoto (inclusive so existente num remote nao-origin)
-all_branches=$(
-  {
-    git for-each-ref --format='%(refname:short)' refs/heads/
-    for _r in "${remotes_ordered[@]}"; do
-      git for-each-ref --format='%(refname:short)' "refs/remotes/$_r/" | sed "s#^$_r/##" | grep -v '^HEAD$'
-    done
-  } | sort -u
-)
 
 # resolve o ponto de partida da cadeia: branch/PR passada por argumento, ou a
 # branch atualmente com checkout feito (comportamento padrao)
 if [[ -n "$target_arg" ]]; then
   if [[ "$target_arg" =~ ^[0-9]+$ ]]; then
-    if (( ! _gh_available )); then
-      echo "erro: buscar por numero de PR exige 'gh' e 'jq' instalados" >&2
+    if ! pr_provider_available; then
+      echo "erro: buscar por numero de PR exige o provider de PR disponivel ($(pr_provider_label): gh+jq instalados)" >&2
       exit 1
     fi
-    resolved_branch=$(gh pr view "$target_arg" --json headRefName --jq .headRefName 2>/dev/null)
+    resolved_branch=$(pr_provider_resolve_pr_branch "$target_arg")
     if [[ -z "$resolved_branch" ]]; then
       echo "erro: PR #$target_arg nao encontrada (ou sem permissao de acesso)" >&2
       exit 1
@@ -407,8 +253,8 @@ declare -A visited=(["$current"]=1)
 
 truncated=0
 while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "master" ]]; do
-  _fetch_pr_info "$current"
-  base="$(_pr_base_trusted "$current")"
+  fetch_pr_info "$current"
+  base="$(pr_base_trusted "$current")"
 
   # base declarada na PR mas a branch ja nao existe (local nem remota) - ex: deletada pos-merge
   if [[ -n "$base" && -z "$(_ref_for "$base")" ]]; then
@@ -485,7 +331,7 @@ else
 fi
 
 # monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao
-# (--json reaproveita os dados coletados aqui, sem chamadas git/gh extras)
+# (--json reaproveita os dados coletados aqui, sem chamadas git/provider extras)
 labels=()
 declare -A ahead_map behind_map has_local_map has_remote_map remote_name_map
 current_conflict=""
@@ -500,7 +346,7 @@ for ((i=0; i<${#chain[@]}; i++)); do
     label="${BOLD}${label}${RESET}"
   fi
 
-  (( ! no_pr )) && _fetch_pr_info "$b"
+  (( ! no_pr )) && fetch_pr_info "$b"
   if (( ! no_pr )) && [[ -n "${pr_number[$b]}" ]]; then
     pr_label="#${pr_number[$b]}"
     # link OSC 8 so em terminal interativo - nunca em saida redirecionada/pipada
