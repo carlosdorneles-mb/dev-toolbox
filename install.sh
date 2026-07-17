@@ -29,14 +29,16 @@ echo ""
 ids=()
 types=()
 paths=()
+entries=()
 descs=()
 
-while IFS='|' read -r id type path _entry desc || [[ -n "$id" ]]; do
+while IFS='|' read -r id type path entry desc || [[ -n "$id" ]]; do
   [[ -z "$id" || "$id" == \#* ]] && continue
 
   ids+=("$id")
   types+=("$type")
   paths+=("$path")
+  entries+=("$entry")
   descs+=("$desc")
 done < "$MANIFEST"
 
@@ -155,6 +157,10 @@ mkdir -p "$ROOT/shell"
 {
   for i in "${!ids[@]}"; do
     [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
+    # unalias defensivo: se o shell do usuario (oh-my-zsh, rc antigo, etc)
+    # ja tiver um alias com o mesmo nome, "nome() { ... }" quebra com
+    # "defining function based on alias" - unalias silencioso evita isso.
+    printf 'unalias %s 2>/dev/null\n' "${entries[$i]}"
     sed "s#{{ROOT}}#$ROOT#g" "$ROOT/${paths[$i]}"
     echo ""
   done

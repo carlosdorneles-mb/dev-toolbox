@@ -60,6 +60,12 @@ dev-toolbox/
 3. Pra log/cor no script: `source "{{ROOT}}/shell/_lib/log.sh"` no início da função e usar `dtb_log_step/ok/warn/skip/err/banner` — não redefinir `RED`/`GREEN`/`NO_COLOR` na mão (ver [`shell/_lib/log.sh`](shell/_lib/log.sh)).
 4. `./install.sh` de novo.
 
+`install.sh` prefixa cada item shell gerado com `unalias <entry> 2>/dev/null`
+antes do `script.sh` concatenado - defesa contra o erro clássico do bash
+"defining function based on alias" quando o shell do usuário (oh-my-zsh, rc
+antigo etc) já tem um alias com o mesmo nome da função (`entry` no
+`MANIFEST`, ex: `update`, `kinfo`).
+
 ## Dependências externas (`deps.sh`)
 
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
