@@ -31,7 +31,7 @@ Pra cada branch na cadeia mostra, quando aplicável:
 | `[merged]` | PR dessa branch já foi mergeada |
 | `[closed sem merge]` | PR foi fechada sem merge (abandonada) |
 | `[PR CONFLICTING]` | PR aberta tem conflito de merge |
-| `[👍N/M]` | PR aberta tem N approvals de M revisores designados no total (quem já revisou + quem foi pedido e ainda não revisou; só a revisão mais recente de cada um conta) |
+| `[👍N/M]` (`[✓N/M]` sem cor) | PR aberta tem N approvals de M revisores designados no total (quem já revisou + quem foi pedido e ainda não revisou; só a revisão mais recente de cada um conta). Com `--no-color`/fora de terminal vira `✓` - emoji tem cor própria e não respeita `NO_COLOR` |
 | `[blocked]` | PR aberta bloqueada pra merge (checks/aprovação faltando, branch protection etc) |
 | `[REBASE\|MERGE\|CHERRY-PICK\|BISECT IN PROGRESS]` | branch atual com uma dessas operações em andamento |
 | `[dirty working tree]` | branch atual tem mudanças trackeadas não commitadas (untracked não conta) |

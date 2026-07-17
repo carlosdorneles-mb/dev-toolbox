@@ -48,7 +48,9 @@ Descrição:
     [👍N/M]                 PR aberta tem N approvals de M revisores
                           designados no total (quem ja revisou + quem foi
                           pedido e ainda nao revisou; so a revisao mais
-                          recente de cada revisor conta)
+                          recente de cada revisor conta). Com --no-color
+                          (ou fora de terminal) vira [✓N/M] - emoji tem
+                          cor propria, nao respeita NO_COLOR
     [blocked]              PR aberta bloqueada pra merge (checks/aprovacao
                           faltando, branch protection etc)
     [REBASE|MERGE|CHERRY-PICK|BISECT IN PROGRESS]   branch atual com uma
@@ -317,8 +319,10 @@ is_tty=0
 if (( is_tty )) && [[ -z "$NO_COLOR" ]]; then
   BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
   CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'
+  APPROVE_MARK="👍"
 else
   BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""
+  APPROVE_MARK="✓"  # emoji tem cor propria (nao respeita NO_COLOR) - sem cor usa so ascii
 fi
 
 # monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao
@@ -360,7 +364,7 @@ for ((i=0; i<${#chain[@]}; i++)); do
 
     # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
     if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[👍${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
+      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${CYAN}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
 
       [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
     fi
