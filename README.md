@@ -30,7 +30,8 @@ dev-toolbox>
   aliases                        Lists all shell and git aliases in a table, showing their source
   update                         Updates system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
   kinfo                          Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted
-  4/4
+  fix-network                    Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)
+  5/5
 TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
 ```
 
@@ -46,6 +47,7 @@ dev-toolbox - itens disponíveis:
    2) aliases    Lists all shell and git aliases in a table, showing their source
    3) update     Updates system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed
    4) kinfo      Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted
+   5) fix-network Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)
 
 Números dos itens que deseja instalar (separados por vírgula):
 ```
@@ -117,6 +119,7 @@ Pra só checar sem instalar nada:
 | `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
 | `update`  | shell | `update` - atualiza pacotes do sistema e ferramentas de dev instaladas (apt, brew, uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor, vscode, sublime, podman, gh + extensões, docker desktop, mas), com detecção de SO (Ubuntu/Debian x macOS via `uname`) pra rodar só o que faz sentido em cada um, roda `apt autoremove`/`autoclean` no fim (Linux), pulando qualquer uma ausente. Ver [`shell/update/README.md`](shell/update/README.md). |
 | `kinfo`   | shell | `kinfo <ambiente> [app]` - mostra detalhes de um deployment no Kubernetes (namespace, env, versão, quem/quando fez o último deploy). Com `fzf` instalado e o app omitido, abre um seletor com os deployments do namespace. Requer `kubectl` configurado. Ver [`shell/kinfo/README.md`](shell/kinfo/README.md). |
+| `fix-network` | shell | `fix_network` - ajusta a rede em caso de instabilidade (desativa IPv6 opcional, limpa cache de DNS opcional, reinicia NetworkManager+Netskope no Linux), cross-platform Ubuntu+macOS via `uname` - restart de rede/Netskope só roda no Linux. Ver [`shell/fix-network/README.md`](shell/fix-network/README.md). |
 
 `MANIFEST` é a fonte da verdade que o install lê (em inglês, formato fixo).
 
