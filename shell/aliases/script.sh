@@ -24,10 +24,10 @@ aliases() {
   local dtb_root="{{ROOT}}"
   local dtb_shell_file="$dtb_root/shell/aliases.local.sh"
 
-  local bold="" reset=""
-  if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
-    bold=$'\e[1m'; reset=$'\e[0m'
-  fi
+  # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -
+  # mesma convenção do resto do dev-toolbox, ver shell/_lib/log.sh)
+  source "{{ROOT}}/shell/_lib/log.sh"
+  local bold="$_DTB_BOLD" reset="$_DTB_RESET"
 
   {
     printf 'TIPO\tNOME\tFONTE\tCOMANDO\n'

@@ -38,6 +38,8 @@ dev-toolbox/
 │       └── README.md             # doc dedicada do alias (uso, flags, exemplos)
 └── shell/
     ├── aliases.local.sh          # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
+    ├── _lib/                     # bibliotecas compartilhadas - NÃO é item instalável, fora do MANIFEST
+    │   └── log.sh                # cores/log padronizados (dtb_log_step/ok/warn/skip/err/banner)
     └── <id>/                     # mesmo padrão pra aliases/funções de shell (ex: shell/aliases/)
         ├── script.sh
         └── README.md
@@ -55,7 +57,8 @@ dev-toolbox/
 **shell:**
 1. Criar `shell/<id>/script.sh` e `shell/<id>/README.md`.
 2. Linha no `MANIFEST`: `<id>|shell|shell/<id>/script.sh|<nome>|<description>`.
-3. `./install.sh` de novo.
+3. Pra log/cor no script: `source "{{ROOT}}/shell/_lib/log.sh"` no início da função e usar `dtb_log_step/ok/warn/skip/err/banner` — não redefinir `RED`/`GREEN`/`NO_COLOR` na mão (ver [`shell/_lib/log.sh`](shell/_lib/log.sh)).
+4. `./install.sh` de novo.
 
 ## Dependências externas (`deps.sh`)
 
@@ -88,3 +91,4 @@ versionado.
 - Path absoluto hardcoded em `alias.gitconfig`/`script.sh` (usar sempre `{{ROOT}}`).
 - Alias novo sem entrada correspondente no `MANIFEST` (fica invisível pro menu interativo de `install.sh --interactive`/`bootstrap.sh`).
 - Lógica de negócio pesada dentro do `install.sh`/`bootstrap.sh` — eles só orquestram (seleção, geração de config, source); a lógica do alias em si vive no `script.sh` do próprio item.
+- Cor/log ad-hoc (`echo -e "\033[..."` direto ou redeclarar `RED`/`GREEN`/`NO_COLOR` local) em script novo — usar `shell/_lib/log.sh` (ver seção "Convenções" acima).

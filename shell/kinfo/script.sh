@@ -19,15 +19,9 @@ kinfo() {
   local APP=${2:-${K_APP}}
 
   # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -
-  # mesma convenção do resto do dev-toolbox)
-  local RED="" GREEN="" YELLOW="" BLUE="" NC=""
-  if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    BLUE='\033[0;34m'
-    NC='\033[0m'
-  fi
+  # mesma convenção do resto do dev-toolbox, ver shell/_lib/log.sh)
+  source "{{ROOT}}/shell/_lib/log.sh"
+  local RED="$_DTB_RED" GREEN="$_DTB_GREEN" YELLOW="$_DTB_YELLOW" BLUE="$_DTB_BLUE" NC="$_DTB_RESET"
 
   if ! command -v kubectl >/dev/null 2>&1; then
     echo -e "${RED}Erro: 'kubectl' não encontrado - instale-o antes de usar o kinfo.${NC}"

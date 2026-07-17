@@ -142,6 +142,7 @@ dev-toolbox/
 │       └── README.md             # doc dedicada do alias
 └── shell/
     ├── aliases.local.sh          # GERADO, gitignored - não editar a mão
+    ├── _lib/log.sh               # cores/log compartilhados - não é item instalável
     └── aliases/                  # um dir por alias/função de shell
         ├── script.sh             # implementação (`aliases() { ... }`)
         └── README.md             # doc dedicada do alias

@@ -25,6 +25,8 @@ fix_network() {
     return 0
   fi
 
+  source "{{ROOT}}/shell/_lib/log.sh"
+
   local os
   case "$(uname -s)" in
     Darwin) os="macos" ;;
@@ -33,11 +35,11 @@ fix_network() {
 
   sudo -v
 
-  echo "Iniciando ajustes de rede..."
+  dtb_log_banner "Iniciando ajustes de rede..."
 
   # 1. Desativação de IPv6
-  echo -e "\033[1;36m> Configuração IPv6\033[0m"
-  echo -en "\033[1m-> Deseja desativar IPv6 nas conexões de rede? (y/N): \033[0m"
+  dtb_log_step "Configuração IPv6"
+  echo -en "${_DTB_BOLD}-> Deseja desativar IPv6 nas conexões de rede? (y/N): ${_DTB_RESET}"
   read -r confirm_ipv6
   if [[ "$confirm_ipv6" == [yY] ]]; then
     if [[ "$os" == "macos" ]]; then
@@ -51,14 +53,14 @@ fix_network() {
         sudo nmcli connection modify "$connection" ipv6.method ignore &>/dev/null
       done
     fi
-    echo "IPv6 desativado nas conexões de rede."
+    dtb_log_ok "IPv6 desativado nas conexões de rede."
   else
-    echo -e "\033[1;90mPulando configuração de IPv6.\033[0m"
+    dtb_log_skip "Pulando configuração de IPv6."
   fi
 
   # 2. Limpeza do cache de DNS
-  echo -e "\033[1;36m> Configuração de cache DNS\033[0m"
-  echo -en "\033[1m-> Deseja limpar o cache de DNS? (y/N): \033[0m"
+  dtb_log_step "Configuração de cache DNS"
+  echo -en "${_DTB_BOLD}-> Deseja limpar o cache de DNS? (y/N): ${_DTB_RESET}"
   read -r confirm_dns
   if [[ "$confirm_dns" == [yY] ]]; then
     echo "  > Limpando cache de DNS..."
@@ -68,9 +70,9 @@ fix_network() {
     else
       sudo resolvectl flush-caches
     fi
-    echo "Cache de DNS limpo."
+    dtb_log_ok "Cache de DNS limpo."
   else
-    echo -e "\033[1;90mPulando limpeza de cache DNS.\033[0m"
+    dtb_log_skip "Pulando limpeza de cache DNS."
   fi
 
   # 3. Reinício de serviços essenciais (NetworkManager - Linux only, sem
@@ -87,9 +89,9 @@ fix_network() {
       sudo systemctl restart stagentd
     fi
   else
-    echo -e "\033[1;90mPulando restart de NetworkManager/Netskope (sem equivalente no macOS).\033[0m"
+    dtb_log_skip "Pulando restart de NetworkManager/Netskope (sem equivalente no macOS)."
   fi
 
   echo ""
-  echo -e "\033[1mAjustes concluídos com sucesso!\033[0m"
+  dtb_log_banner "Ajustes concluídos com sucesso!"
 }
