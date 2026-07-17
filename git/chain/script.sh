@@ -117,7 +117,11 @@ Opções:
   -h           mostra esta ajuda
   --no-color   desabilita cores (mesmo efeito de NO_COLOR=1)
   --inline     mostra a cadeia em uma linha só (com setas →) em vez do
-               modo árvore (padrão, raiz no topo)
+               modo árvore (padrão, raiz no topo). So mostra nome da
+               branch, #NNN e ahead/behind (▲/▼) - sem draft, merged,
+               closed, conflicting, diffstat, approvals, comentarios,
+               blocked, dirty working tree etc (esses ficam so no modo
+               arvore)
   --no-pr      esconde tudo relacionado a PR (#NNN, draft, merged, closed,
                conflicting, approvals, blocked) - so a hierarquia de
                branches + ahead/behind/[X]. A cadeia continua usando o
@@ -505,42 +509,50 @@ for ((i=0; i<${#chain[@]}; i++)); do
     fi
     label="$label ${CYAN}${pr_label}${RESET}"
 
-    (( ${pr_changed_files[$b]:-0} > 0 )) && label="$label ${DIM}[📄${pr_changed_files[$b]} ${GREEN}+${pr_additions[$b]:-0}${RESET}${DIM}/${RED}-${pr_deletions[$b]:-0}${RESET}${DIM}]${RESET}"
+    # modo inline: so nome, #PR e ahead/behind - resto dos marcadores (diffstat,
+    # draft, merged/closed/conflicting, approvals, comentarios, blocked) so
+    # aparece no modo arvore (padrao)
+    if (( tree_mode )); then
+      (( ${pr_changed_files[$b]:-0} > 0 )) && label="$label ${DIM}[📄${pr_changed_files[$b]} ${GREEN}+${pr_additions[$b]:-0}${RESET}${DIM}/${RED}-${pr_deletions[$b]:-0}${RESET}${DIM}]${RESET}"
 
-    if [[ "${pr_draft[$b]}" == "true" ]]; then
-      label="$label ${DIM}[draft]${RESET}"
-    fi
+      if [[ "${pr_draft[$b]}" == "true" ]]; then
+        label="$label ${DIM}[draft]${RESET}"
+      fi
 
-    # state primeiro: PR merged/closed nunca deve ser mostrada como conflitante
-    if [[ "${pr_state[$b]}" == "MERGED" ]]; then
-      label="$label ${DIM}[merged]${RESET}"
-    elif [[ "${pr_state[$b]}" == "CLOSED" ]]; then
-      label="$label ${RED}[closed sem merge]${RESET}"
-    elif [[ "${pr_mergeable[$b]}" == "CONFLICTING" ]]; then
-      label="$label ${RED}${BOLD}[PR CONFLICTING]${RESET}"
-    fi
+      # state primeiro: PR merged/closed nunca deve ser mostrada como conflitante
+      if [[ "${pr_state[$b]}" == "MERGED" ]]; then
+        label="$label ${DIM}[merged]${RESET}"
+      elif [[ "${pr_state[$b]}" == "CLOSED" ]]; then
+        label="$label ${RED}[closed sem merge]${RESET}"
+      elif [[ "${pr_mergeable[$b]}" == "CONFLICTING" ]]; then
+        label="$label ${RED}${BOLD}[PR CONFLICTING]${RESET}"
+      fi
 
-    # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
-    if [[ "${pr_state[$b]}" == "OPEN" ]]; then
-      (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${DIM}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
+      # approvals/reviewers e status de merge so fazem sentido pra PR ainda aberta
+      if [[ "${pr_state[$b]}" == "OPEN" ]]; then
+        (( ${pr_reviewers_total[$b]:-0} > 0 )) && label="$label ${DIM}[${APPROVE_MARK}${pr_approvals[$b]:-0}/${pr_reviewers_total[$b]}]${RESET}"
 
-      (( ${pr_comments[$b]:-0} > 0 )) && label="$label ${DIM}[💬${pr_comments[$b]}]${RESET}"
+        (( ${pr_comments[$b]:-0} > 0 )) && label="$label ${DIM}[💬${pr_comments[$b]}]${RESET}"
 
-      [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
+        [[ "${pr_merge_status[$b]}" == "BLOCKED" ]] && label="$label ${RED}${BOLD}[blocked]${RESET}"
+      fi
     fi
   fi
 
   # estado local (working tree, rebase/merge em andamento) so se aplica a
   # branch com checkout de fato feito - se "b" e uma branch consultada por
-  # argumento (nao a real HEAD), esses marcadores nao fazem sentido pra ela
+  # argumento (nao a real HEAD), esses marcadores nao fazem sentido pra ela.
+  # o calculo roda sempre (o --json precisa dele mesmo se --inline foi
+  # passado junto, ja que --json ignora --inline); so a exibicao no label
+  # de texto (usado por tree/inline) fica atras do "tree_mode"
   if [[ "$b" == "$real_current" ]]; then
     conflict=$(_local_conflict_marker)
     current_conflict="$conflict"
-    [[ -n "$conflict" ]] && label="$label ${RED}${BOLD}[$conflict IN PROGRESS]${RESET}"
+    (( tree_mode )) && [[ -n "$conflict" ]] && label="$label ${RED}${BOLD}[$conflict IN PROGRESS]${RESET}"
 
     if _dirty_worktree; then
       current_dirty=1
-      label="$label ${YELLOW}[dirty working tree]${RESET}"
+      (( tree_mode )) && label="$label ${YELLOW}[dirty working tree]${RESET}"
     fi
   fi
 
