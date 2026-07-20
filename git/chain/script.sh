@@ -8,6 +8,7 @@ tree_mode=1
 no_pr=0
 text_mode=0
 json_mode=0
+no_warning=0
 target_arg=""
 for arg in "$@"; do
   case "$arg" in
@@ -17,6 +18,7 @@ for arg in "$@"; do
     --no-pr) no_pr=1; continue ;;
     --text) text_mode=1; continue ;;
     --json) json_mode=1; continue ;;
+    --no-warning) no_warning=1; continue ;;
   esac
 
   if [[ "$arg" == -* ]]; then
@@ -40,7 +42,7 @@ if [[ -n "$show_help" ]]; then
 git chain - mostra a cadeia de branches (stack de PRs) da branch atual até main
 
 Uso:
-  git chain [<branch> | <numero-da-PR>] [--no-color] [--inline] [--no-pr] [--text | --json]
+  git chain [<branch> | <numero-da-PR>] [--no-color] [--inline] [--no-pr] [--no-warning] [--text | --json]
 
 Descrição:
   Percorre a branch atual até a branch raiz (main/master, ou a default
@@ -141,6 +143,8 @@ Opções:
                branches + ahead/behind/[X]. A cadeia continua usando o
                provider por baixo dos panos pra resolver o parent
                correto, so a exibicao fica mais limpa
+  --no-warning silencia os avisos em stderr (base de PR desatualizada,
+               branch deletada, cadeia truncada etc) - so a cadeia em si
   --text       so os nomes das branches, um por linha, raiz primeiro -
                sem cor, sem #PR, sem ahead/behind. Pra uso em scripts
                (ex: "git chain --text | while read -r b; do ...; done").
@@ -206,6 +210,27 @@ if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   exit 1
 fi
 
+# cores ANSI (desligadas se saida nao for terminal ou se NO_COLOR estiver setado)
+is_tty=0
+[[ -t 1 ]] && is_tty=1
+
+if (( is_tty )) && [[ -z "$NO_COLOR" ]]; then
+  BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
+  CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'; GREEN=$'\e[32m'
+  APPROVE_MARK="👍"
+else
+  BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""; GREEN=""
+  APPROVE_MARK="✓"  # emoji tem cor propria (nao respeita NO_COLOR) - sem cor usa so ascii
+fi
+
+# aviso em stderr, amarelo + ⚠ (emoji tem cor propria, sempre aparece mesmo
+# com --no-color/NO_COLOR - so a cor do texto some, igual APPROVE_MARK acima).
+# --no-warning silencia tudo (util em script que so quer a cadeia, sem ruido).
+_warn() {
+  (( no_warning )) && return
+  echo "⚠ ${YELLOW}aviso: $*${RESET}" >&2
+}
+
 real_current=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ -z "$target_arg" && "$real_current" == "HEAD" ]]; then
@@ -264,7 +289,7 @@ while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "
 
   # base declarada na PR mas a branch ja nao existe (local nem remota) - ex: deletada pos-merge
   if [[ -n "$base" && -z "$(_ref_for "$base")" ]]; then
-    echo "aviso: PR de '$current' aponta pra base '$base', que nao existe mais (local nem remota) - usando heuristica" >&2
+    _warn "PR de '$current' aponta pra base '$base', que nao existe mais (local nem remota) - usando heuristica"
     base=""
   fi
 
@@ -279,7 +304,7 @@ while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "
     # trocar de fonte de verdade por causa de falso-positivo da heuristica).
     heuristic_branch="$(_local_heuristic_parent "$current")"
     if [[ -n "$heuristic_branch" && "$heuristic_branch" != "$base" ]]; then
-      echo "aviso: PR de '$current' declara base '$base', mas o historico local sugere '$heuristic_branch' como parent real (branch provavelmente rebasada sem atualizar a base da PR) - usando a base declarada da PR" >&2
+      _warn "PR de '$current' declara base '$base', mas o historico local sugere '$heuristic_branch' como parent real (branch provavelmente rebasada sem atualizar a base da PR) - usando a base declarada da PR"
     fi
   fi
 
@@ -294,7 +319,7 @@ while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "
 done
 
 if (( truncated )); then
-  echo "aviso: nao foi possivel resolver o parent de '$current' - cadeia truncada" >&2
+  _warn "nao foi possivel resolver o parent de '$current' - cadeia truncada"
 fi
 
 wait "$_fetch_pid" 2>/dev/null  # so espera o fetch em background aqui, na hora que o resultado importa
@@ -306,19 +331,6 @@ if (( text_mode )); then
     echo "${chain[$i]}"
   done
   exit 0
-fi
-
-# cores ANSI (desligadas se saida nao for terminal ou se NO_COLOR estiver setado)
-is_tty=0
-[[ -t 1 ]] && is_tty=1
-
-if (( is_tty )) && [[ -z "$NO_COLOR" ]]; then
-  BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
-  CYAN=$'\e[36m'; YELLOW=$'\e[33m'; RED=$'\e[31m'; GREEN=$'\e[32m'
-  APPROVE_MARK="👍"
-else
-  BOLD=""; DIM=""; RESET=""; CYAN=""; YELLOW=""; RED=""; GREEN=""
-  APPROVE_MARK="✓"  # emoji tem cor propria (nao respeita NO_COLOR) - sem cor usa so ascii
 fi
 
 # monta o label de cada branch (nome + #PR + ahead/behind), independente do modo de impressao

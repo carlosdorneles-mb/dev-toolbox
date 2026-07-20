@@ -87,7 +87,7 @@ resolve_root_branch() {
     else
       # nenhum remote com HEAD resolvivel (falta "git remote set-head") nem
       # main/master local - default "main" pode nao ser a raiz real do repo
-      echo "aviso: nao foi possivel detectar a branch raiz (remote sem HEAD resolvivel, rode 'git remote set-head <remote> --auto') - assumindo 'main'" >&2
+      _warn "nao foi possivel detectar a branch raiz (remote sem HEAD resolvivel, rode 'git remote set-head <remote> --auto') - assumindo 'main'"
       root_branch="main"
     fi
   fi
