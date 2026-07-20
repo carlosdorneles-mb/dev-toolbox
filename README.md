@@ -25,10 +25,10 @@ quais itens instalar:
 ```
 dev-toolbox> 
 > chain                          Shows the branch chain (PR stack) from current to main
-  aliases                        Lists all shell and git aliases in a table, showing their source
-  update                         Updates dev-toolbox itself (git pull + reinstall), system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed; --only-dev-toolbox updates just dev-toolbox itself
-  kinfo                          Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted
-  fix-network                    Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)
+  aliases                        Lists shell and git aliases in a table; -r/--run opens an fzf picker, --only-dev-toolbox filters to this repo
+  update                         Updates dev-toolbox, system packages and installed dev tools (apt/brew/uv/poetry/mise/rustup/pipx/gh/docker/...); --only-dev-toolbox updates just dev-toolbox
+  kinfo                          Shows Kubernetes deployment details for an app, with an fzf picker if the app is omitted
+  fix-network                    Fixes network instability: resets IPv6/DNS, restarts NetworkManager and Netskope (Linux only)
   5/5
 TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
 ```
@@ -104,7 +104,7 @@ Pra só checar sem instalar nada:
 | `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. `-r`/`--run` abre um menu `fzf` pra escolher e executar um na hora; `--only-dev-toolbox` filtra só os deste repo. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
 | `update`  | shell | `update` - atualiza o próprio dev-toolbox (git pull + reinstala), pacotes do sistema e ferramentas de dev instaladas (apt, brew, uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor, vscode, sublime, podman, gh + extensões, docker desktop, mas), com detecção de SO (Ubuntu/Debian x macOS via `uname`) pra rodar só o que faz sentido em cada um, roda `apt autoremove`/`autoclean` no fim (Linux), pulando qualquer uma ausente; `--only-dev-toolbox` roda só o bloco de git pull + reinstala do próprio dev-toolbox. Ver [`shell/update/README.md`](shell/update/README.md). |
 | `kinfo`   | shell | `kinfo <ambiente> [app]` - mostra detalhes de um deployment no Kubernetes (namespace, env, versão, quem/quando fez o último deploy). Com `fzf` instalado e o app omitido, abre um seletor com os deployments do namespace. Requer `kubectl` configurado. Ver [`shell/kinfo/README.md`](shell/kinfo/README.md). |
-| `fix-network` | shell | `fix_network` - ajusta a rede em caso de instabilidade (desativa IPv6 opcional, limpa cache de DNS opcional, reinicia NetworkManager+Netskope no Linux), cross-platform Ubuntu+macOS via `uname` - restart de rede/Netskope só roda no Linux. Ver [`shell/fix-network/README.md`](shell/fix-network/README.md). |
+| `fix-network` | shell | `fix-network` - ajusta a rede em caso de instabilidade (desativa IPv6 opcional, limpa cache de DNS opcional, reinicia NetworkManager+Netskope no Linux), cross-platform Ubuntu+macOS via `uname` - restart de rede/Netskope só roda no Linux. Ver [`shell/fix-network/README.md`](shell/fix-network/README.md). |
 
 `catalog.json` é a fonte da verdade que o install lê (descrições em
 inglês, parseado via `jq`).

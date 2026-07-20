@@ -1,4 +1,4 @@
-# fix_network
+# fix-network
 
 Ajusta a rede em caso de instabilidade de conexão. Cross-platform
 Ubuntu/Debian + macOS.
@@ -6,8 +6,8 @@ Ubuntu/Debian + macOS.
 ## Uso
 
 ```bash
-fix_network
-fix_network -h | --help
+fix-network
+fix-network -h | --help
 ```
 
 ## Descrição

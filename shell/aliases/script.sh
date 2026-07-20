@@ -9,7 +9,7 @@
 # de framework, oh-my-zsh, etc) fica de fora da tabela - o objetivo aqui e
 # mostrar o que foi configurado nesses arquivos, nao todo alias ativo na
 # sessao.
-# shell "aliases" do proprio dev-toolbox (aliases/update/kinfo/fix_network)
+# shell "aliases" do proprio dev-toolbox (aliases/update/kinfo/fix-network)
 # nao sao "alias" builtin, sao funcoes - por isso entram num loop separado,
 # lendo os nomes de funcao direto do aliases.local.sh gerado.
 _dtb_aliases_collect() {

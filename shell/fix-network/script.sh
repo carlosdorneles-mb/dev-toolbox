@@ -1,14 +1,14 @@
-# Comando "fix_network": ajustes de rede pra resolver instabilidade de
+# Comando "fix-network": ajustes de rede pra resolver instabilidade de
 # conexão - desativa IPv6 (opcional), limpa cache de DNS (opcional), reinicia
 # NetworkManager e o agente Netskope (stagentd), se presente. Cross-platform
 # Ubuntu/Debian + macOS via uname; passos 3 e 4 (restart de rede/Netskope)
 # não têm equivalente confiável no macOS e são pulados lá.
 #
-# Uso: fix_network
-# Uso: fix_network -h | --help
-fix_network() {
+# Uso: fix-network
+# Uso: fix-network -h | --help
+fix-network() {
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Uso: fix_network"
+    echo "Uso: fix-network"
     echo ""
     echo "Ajusta a rede em caso de instabilidade de conexão:"
     echo "  1. Desativa IPv6 nas conexões de rede (opcional, pede confirmação)"
