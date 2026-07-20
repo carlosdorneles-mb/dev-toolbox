@@ -125,8 +125,14 @@ echo "${GREEN}✔${RESET} shell aliases ${GREEN}ok${RESET} ${DIM}-> $SHELL_CONFI
 
 echo ""
 echo "${BOLD}Comandos instalados:${RESET}"
+echo "${DIM}git:${RESET}"
 for i in "${!ids[@]}"; do
-  [[ -n "${selected[${ids[$i]}]+x}" ]] || continue
+  [[ "${types[$i]}" == "git" && -n "${selected[${ids[$i]}]+x}" ]] || continue
+  printf "  %-15s %s\n" "git ${entries[$i]}" "${descs[$i]}"
+done
+echo "${DIM}shell:${RESET}"
+for i in "${!ids[@]}"; do
+  [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
   printf "  %-15s %s\n" "${entries[$i]}" "${descs[$i]}"
 done
 
