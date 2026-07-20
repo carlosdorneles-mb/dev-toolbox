@@ -17,12 +17,10 @@ Pra instalar **tudo direto, sem menu** (ex: provisionamento automatizado):
 curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash -s -- --all
 ```
 
-Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado) e abre um
-menu pra escolher quais itens instalar.
-
-**Com [`fzf`](https://github.com/junegunn/fzf) instalado** (mesmo binário em
-mac - `brew install fzf` - e linux - `apt`/`pacman`/etc.), o menu vira um
-checklist navegável:
+Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado), garante
+[`fzf`](https://github.com/junegunn/fzf) instalado (obrigatório - ver
+[Dependências](#dependências)) e abre um checklist navegável pra escolher
+quais itens instalar:
 
 ```
 dev-toolbox> 
@@ -37,23 +35,6 @@ TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confir
 
 Navega com as setas, `TAB` marca/desmarca, `CTRL-A`/`CTRL-D` marca/desmarca
 tudo, `ENTER` confirma, `ESC` cancela (mantém a seleção anterior).
-
-**Sem `fzf`**, cai num prompt simples por número:
-
-```
-dev-toolbox - itens disponíveis:
-
-   1) chain      Shows the branch chain (PR stack) from current to main
-   2) aliases    Lists all shell and git aliases in a table, showing their source
-   3) update     Updates dev-toolbox itself (git pull + reinstall), system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed; --only-dev-toolbox updates just dev-toolbox itself
-   4) kinfo      Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted
-   5) fix-network Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)
-
-Números dos itens que deseja instalar (separados por vírgula):
-```
-
-Digite os números desejados (`1 3` ou `1,3`), ou só `enter` pra manter a
-seleção atual (na primeira instalação, tudo vem pré-marcado).
 
 Rodar o mesmo comando de novo no futuro **atualiza** (git pull) e reabre a
 seleção - serve tanto pra sincronizar quanto pra ligar/desligar itens.

@@ -12,9 +12,9 @@ set -euo pipefail
 
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
   BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
-  GREEN=$'\e[32m'; CYAN=$'\e[36m'; YELLOW=$'\e[33m'
+  GREEN=$'\e[32m'
 else
-  BOLD=""; DIM=""; RESET=""; GREEN=""; CYAN=""; YELLOW=""
+  BOLD=""; DIM=""; RESET=""; GREEN=""
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,7 +49,7 @@ if (( INTERACTIVE )) && [[ -f "$STATE_FILE" ]]; then
 fi
 
 # seleção via fzf (checklist navegável, TAB marca/desmarca, ENTER confirma) -
-# so usada se `fzf` estiver instalado; senao cai no prompt numerico simples.
+# fzf e obrigatorio (deps.sh acima ja garante isso, abortando se faltar).
 # mesma binaria fzf funciona em mac e linux (brew/apt/pacman), sem diferenca
 # de comportamento entre os dois.
 _select_with_fzf() {
@@ -76,48 +76,7 @@ _select_with_fzf() {
   for id in "${chosen[@]}"; do selected["$id"]=1; done
 }
 
-# fallback sem dependencia externa - lista enumerada + prompt de numeros
-# separados por virgula.
-_select_with_prompt() {
-  local i choice n idx k
-  local -A new_selected
-
-  echo ""
-  echo "${BOLD}${CYAN}dev-toolbox${RESET} - itens disponíveis:"
-  echo ""
-
-  for i in "${!ids[@]}"; do
-    printf "  %2d) %-10s %s\n" "$((i+1))" "${ids[$i]}" "${descs[$i]}"
-  done
-
-  echo ""
-  choice=""
-  read -r -p "Números dos itens que deseja instalar (separados por vírgula): " choice < /dev/tty || true
-
-  [[ -z "$choice" ]] && return
-
-  choice="${choice//,/ }"
-  for n in $choice; do
-    if [[ ! "$n" =~ ^[0-9]+$ ]]; then
-      echo "${YELLOW}⚠ aviso:${RESET} '$n' ignorado (não é um número válido)" >&2
-      continue
-    fi
-
-    idx=$((n - 1))
-    (( idx >= 0 && idx < ${#ids[@]} )) && new_selected["${ids[$idx]}"]=1
-  done
-
-  selected=()
-  for k in "${!new_selected[@]}"; do selected["$k"]=1; done
-}
-
-if (( INTERACTIVE )); then
-  if command -v fzf &>/dev/null; then
-    _select_with_fzf
-  else
-    _select_with_prompt
-  fi
-fi
+(( INTERACTIVE )) && _select_with_fzf
 
 : > "$STATE_FILE"
 for id in "${!selected[@]}"; do echo "$id" >> "$STATE_FILE"; done
