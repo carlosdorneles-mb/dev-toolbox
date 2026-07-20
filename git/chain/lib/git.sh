@@ -18,6 +18,43 @@ pr_base_trusted() {
   [[ "${pr_state[$b]}" == "OPEN" || "${pr_state[$b]}" == "MERGED" ]] && echo "${pr_base[$b]}"
 }
 
+# heuristica local: entre as branches conhecidas (array global all_branches,
+# ja excluindo as visitadas no array associativo global visited), acha a que
+# tem o merge-base mais recente com "$1" - candidata mais provavel a ser o
+# parent real. Usada tanto como fallback (sem PR confiavel) quanto pra
+# validar a base declarada de uma PR contra o historico local (ver
+# _pr_base_matches_local em script.sh).
+_local_heuristic_parent() {
+  local current="$1"
+  local current_ref current_tip
+  current_ref=$(_ref_for "$current")
+  current_tip=$(git rev-parse "$current_ref" 2>/dev/null)
+
+  local best_branch="" best_date=0
+  local b b_ref mb date
+  for b in $all_branches; do
+    [[ "$b" == "$current" ]] && continue
+    [[ -n "${visited[$b]+x}" ]] && continue
+
+    b_ref=$(_ref_for "$b")
+    [[ -z "$b_ref" ]] && continue
+
+    mb=$(git merge-base "$current_ref" "$b_ref" 2>/dev/null)
+    [[ -z "$mb" ]] && continue
+
+    # rejeita candidato se mb == tip do current (b e filho/irmao, nao ancestral real)
+    [[ "$mb" == "$current_tip" ]] && continue
+
+    date=$(git show -s --format=%ct "$mb" 2>/dev/null)
+    if (( date > best_date )); then
+      best_date=$date
+      best_branch=$b
+    fi
+  done
+
+  echo "$best_branch"
+}
+
 # monta remotes_ordered (global) com "origin" primeiro se existir - ordem de
 # preferencia usada sempre que uma branch existe em mais de um remote
 resolve_remotes_ordered() {

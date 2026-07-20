@@ -92,6 +92,12 @@ Descrição:
   cadeia - só PR aberta ou já mergeada são confiáveis pra isso; CLOSED
   cai no fallback heurístico (a branch pode ter seguido outro rumo).
 
+  Mesmo com PR aberta/mergeada, a base declarada é validada contra o
+  histórico local: se a branch foi rebasada pra outro parent sem
+  atualizar a base da PR no GitHub, um aviso aparece em stderr (a
+  cadeia continua usando a base declarada da PR, só avisa da
+  divergência).
+
   Roda "git fetch --all --quiet" antes de comparar ahead/behind, então os
   números refletem o estado real dos remotes no momento da execução.
 
@@ -264,32 +270,17 @@ while [[ "$current" != "$root_branch" && "$current" != "main" && "$current" != "
 
   # sem PR aberta/confiavel -> fallback: heuristica local por merge-base mais recente
   if [[ -z "$base" ]]; then
-    best_branch=""
-    best_date=0
-    current_ref=$(_ref_for "$current")
-    current_tip=$(git rev-parse "$current_ref" 2>/dev/null)
-
-    for b in $all_branches; do
-      [[ "$b" == "$current" ]] && continue
-      [[ -n "${visited[$b]+x}" ]] && continue
-
-      b_ref=$(_ref_for "$b")
-      [[ -z "$b_ref" ]] && continue
-
-      mb=$(git merge-base "$current_ref" "$b_ref" 2>/dev/null)
-      [[ -z "$mb" ]] && continue
-
-      # rejeita candidato se mb == tip do current (b e filho/irmao, nao ancestral real)
-      [[ "$mb" == "$current_tip" ]] && continue
-
-      date=$(git show -s --format=%ct "$mb" 2>/dev/null)
-      if (( date > best_date )); then
-        best_date=$date
-        best_branch=$b
-      fi
-    done
-
-    base="$best_branch"
+    base="$(_local_heuristic_parent "$current")"
+  else
+    # base confiavel (vem de PR aberta/mergeada) - valida contra o historico
+    # local: se a heuristica acha uma branch com merge-base mais recente que
+    # a base declarada, a branch provavelmente foi rebasada sem atualizar a
+    # base da PR no provider. So avisa - continua confiando na PR (evita
+    # trocar de fonte de verdade por causa de falso-positivo da heuristica).
+    heuristic_branch="$(_local_heuristic_parent "$current")"
+    if [[ -n "$heuristic_branch" && "$heuristic_branch" != "$base" ]]; then
+      echo "aviso: PR de '$current' declara base '$base', mas o historico local sugere '$heuristic_branch' como parent real (branch provavelmente rebasada sem atualizar a base da PR) - usando a base declarada da PR" >&2
+    fi
   fi
 
   if [[ -z "$base" || -n "${visited[$base]+x}" ]]; then

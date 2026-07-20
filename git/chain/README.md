@@ -57,6 +57,12 @@ PR fechada sem merge (`CLOSED`) não é usada como fonte do parent na cadeia -
 só PR aberta ou já mergeada são confiáveis pra isso; `CLOSED` cai no
 fallback heurístico (a branch pode ter seguido outro rumo).
 
+Mesmo com PR aberta/mergeada, a base declarada é validada contra o
+histórico local (mesma heurística de merge-base do fallback): se a branch
+foi rebasada pra outro parent sem atualizar a base da PR no GitHub, aparece
+um aviso em stderr - a cadeia continua usando a base declarada da PR, só
+avisa da divergência.
+
 Roda `git fetch --all --quiet` antes de comparar ahead/behind, então os
 números refletem o estado real dos remotes no momento da execução.
 
