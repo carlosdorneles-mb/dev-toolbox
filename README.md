@@ -125,7 +125,8 @@ Pra só checar sem instalar nada:
 | `kinfo`   | shell | `kinfo <ambiente> [app]` - mostra detalhes de um deployment no Kubernetes (namespace, env, versão, quem/quando fez o último deploy). Com `fzf` instalado e o app omitido, abre um seletor com os deployments do namespace. Requer `kubectl` configurado. Ver [`shell/kinfo/README.md`](shell/kinfo/README.md). |
 | `fix-network` | shell | `fix_network` - ajusta a rede em caso de instabilidade (desativa IPv6 opcional, limpa cache de DNS opcional, reinicia NetworkManager+Netskope no Linux), cross-platform Ubuntu+macOS via `uname` - restart de rede/Netskope só roda no Linux. Ver [`shell/fix-network/README.md`](shell/fix-network/README.md). |
 
-`MANIFEST` é a fonte da verdade que o install lê (em inglês, formato fixo).
+`MANIFEST.json` é a fonte da verdade que o install lê (descrições em
+inglês, parseado via `jq`).
 
 ## Estrutura
 
@@ -137,7 +138,7 @@ dev-toolbox/
 ├── bootstrap.sh                  # entrypoint do curl - clona/atualiza + chama install.sh
 ├── install.sh                    # instala/atualiza (local ou via bootstrap), --interactive p/ seleção
 ├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh) - chamado pelo install.sh
-├── MANIFEST                      # catálogo dos itens instaláveis (id|type|path|entry|description)
+├── MANIFEST.json                 # catálogo dos itens instaláveis (array de {id,type,path,entry,description})
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO, gitignored - não editar a mão
 │   └── chain/                    # um dir por alias git
@@ -157,10 +158,10 @@ dev-toolbox/
 **git:**
 1. Criar `git/<id>/` com `script.sh` (implementação) e `README.md` (doc do alias).
 2. `git/<id>/alias.gitconfig` com `<nome> = !bash {{ROOT}}/git/<id>/script.sh`.
-3. Linha nova em `MANIFEST`: `<id>|git|git/<id>/alias.gitconfig|<nome>|<description>`.
+3. Entrada nova em `MANIFEST.json`: `{"id": "<id>", "type": "git", "path": "git/<id>/alias.gitconfig", "entry": "<nome>", "description": "<description>"}`.
 4. `./install.sh` pra sincronizar local (ou pull + `./install.sh --interactive` em outra máquina).
 
 **shell:**
 1. Criar `shell/<id>/` com `script.sh` (função/alias, pode usar `{{ROOT}}`) e `README.md`.
-2. Linha nova em `MANIFEST`: `<id>|shell|shell/<id>/script.sh|<nome>|<description>`.
+2. Entrada nova em `MANIFEST.json`: `{"id": "<id>", "type": "shell", "path": "shell/<id>/script.sh", "entry": "<nome>", "description": "<description>"}`.
 3. `./install.sh` pra sincronizar.

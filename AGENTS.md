@@ -13,7 +13,7 @@ reinstalar pacote a cada mudança. Detalhes de uso em [`README.md`](README.md).
   comentários, mensagens de `echo`/prompt - usa acentuação correta
   (não → nao é erro). Nunca escrever PT-BR sem acento pra "economizar" ou
   por hábito de script ASCII-only; UTF-8 é seguro em `.sh`/`.md`/`echo`.
-- `MANIFEST` em **inglês** (formato fixo, tabular, decisão deliberada).
+- `MANIFEST.json` em **inglês** (campos `description` em inglês).
 - Comentários dentro dos scripts `.sh`: seguir o idioma já predominante no
   arquivo (a maioria está em português - ver `git/chain/script.sh`).
 - Commits em **inglês**, [Conventional Commits](https://www.conventionalcommits.org/).
@@ -29,7 +29,7 @@ dev-toolbox/
 ├── install.sh                    # instala/atualiza (local ou via bootstrap); --interactive p/ seleção granular
 ├── uninstall.sh                  # inverso do install.sh - remove entradas deste clone do ~/.gitconfig e ~/.bashrc/~/.zshrc
 ├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh); chamado pelo install.sh
-├── MANIFEST                      # catálogo dos itens instaláveis: id|type|path|entry|description
+├── MANIFEST.json                 # catálogo dos itens instaláveis: array de {id,type,path,entry,description}
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
 │   └── <id>/                     # um dir por alias git
@@ -38,7 +38,7 @@ dev-toolbox/
 │       └── README.md             # doc dedicada do alias (uso, flags, exemplos)
 └── shell/
     ├── aliases.local.sh          # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
-    ├── _lib/                     # bibliotecas compartilhadas - NÃO é item instalável, fora do MANIFEST
+    ├── _lib/                     # bibliotecas compartilhadas - NÃO é item instalável, fora do MANIFEST.json
     │   └── log.sh                # cores/log padronizados (dtb_log_step/ok/warn/skip/err/banner)
     └── <id>/                     # mesmo padrão pra aliases/funções de shell (ex: shell/aliases/)
         ├── script.sh
@@ -50,13 +50,13 @@ dev-toolbox/
 **git:**
 1. Criar `git/<id>/script.sh` (implementação) e `git/<id>/README.md` (uso, flags, exemplos — mesmo nível de detalhe do `git/chain/README.md`).
 2. Criar `git/<id>/alias.gitconfig` com uma linha: `<nome> = !bash {{ROOT}}/git/<id>/script.sh`.
-3. Adicionar linha no `MANIFEST`: `<id>|git|git/<id>/alias.gitconfig|<nome>|<description em inglês>`.
+3. Adicionar entrada no array de `MANIFEST.json`: `{"id": "<id>", "type": "git", "path": "git/<id>/alias.gitconfig", "entry": "<nome>", "description": "<description em inglês>"}`.
 4. Se o script exigir binário externo novo (além de jq/fzf/gh já cobertos), adicionar uma linha no array `DEPS` de `deps.sh`.
 5. Rodar `./install.sh` local pra validar antes de commitar.
 
 **shell:**
 1. Criar `shell/<id>/script.sh` e `shell/<id>/README.md`.
-2. Linha no `MANIFEST`: `<id>|shell|shell/<id>/script.sh|<nome>|<description>`.
+2. Entrada no `MANIFEST.json`: `{"id": "<id>", "type": "shell", "path": "shell/<id>/script.sh", "entry": "<nome>", "description": "<description>"}`.
 3. Pra log/cor no script: `source "{{ROOT}}/shell/_lib/log.sh"` no início da função e usar `dtb_log_step/ok/warn/skip/err/banner` — não redefinir `RED`/`GREEN`/`NO_COLOR` na mão (ver [`shell/_lib/log.sh`](shell/_lib/log.sh)).
 4. `./install.sh` de novo.
 
@@ -64,7 +64,7 @@ dev-toolbox/
 antes do `script.sh` concatenado - defesa contra o erro clássico do bash
 "defining function based on alias" quando o shell do usuário (oh-my-zsh, rc
 antigo etc) já tem um alias com o mesmo nome da função (`entry` no
-`MANIFEST`, ex: `update`, `kinfo`).
+`MANIFEST.json`, ex: `update`, `kinfo`).
 
 ## Dependências externas (`deps.sh`)
 
@@ -98,6 +98,6 @@ versionado.
 
 - Editar `git/aliases.local.gitconfig`, `shell/aliases.local.sh` ou `.installed` a mão (são gerados; mudança se perde no próximo `install.sh`).
 - Path absoluto hardcoded em `alias.gitconfig`/`script.sh` (usar sempre `{{ROOT}}`).
-- Alias novo sem entrada correspondente no `MANIFEST` (fica invisível pro menu interativo de `install.sh --interactive`/`bootstrap.sh`).
+- Alias novo sem entrada correspondente no `MANIFEST.json` (fica invisível pro menu interativo de `install.sh --interactive`/`bootstrap.sh`).
 - Lógica de negócio pesada dentro do `install.sh`/`bootstrap.sh` — eles só orquestram (seleção, geração de config, source); a lógica do alias em si vive no `script.sh` do próprio item.
 - Cor/log ad-hoc (`echo -e "\033[..."` direto ou redeclarar `RED`/`GREEN`/`NO_COLOR` local) em script novo — usar `shell/_lib/log.sh` (ver seção "Convenções" acima).

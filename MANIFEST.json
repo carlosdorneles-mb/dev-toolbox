@@ -1,0 +1,37 @@
+[
+  {
+    "id": "chain",
+    "type": "git",
+    "path": "git/chain/alias.gitconfig",
+    "entry": "chain",
+    "description": "Shows the branch chain (PR stack) from current to main"
+  },
+  {
+    "id": "aliases",
+    "type": "shell",
+    "path": "shell/aliases/script.sh",
+    "entry": "aliases",
+    "description": "Lists all shell and git aliases in a table, showing their source; -r/--run opens an fzf menu to pick and execute one, --only-dev-toolbox filters to just this repo's aliases"
+  },
+  {
+    "id": "update",
+    "type": "shell",
+    "path": "shell/update/script.sh",
+    "entry": "update",
+    "description": "Updates dev-toolbox itself (git pull + reinstall), system packages and installed dev tools (apt/brew/uv/poetry/mise/flatpak/snap/aqua/gcloud/rustup/pipx/cursor/vscode/sublime/podman/gh+extensions/docker desktop/mas), cross-platform Ubuntu+macOS via uname detection, plus apt autoremove/autoclean cleanup, skipping any not installed; --only-dev-toolbox updates just dev-toolbox itself"
+  },
+  {
+    "id": "kinfo",
+    "type": "shell",
+    "path": "shell/kinfo/script.sh",
+    "entry": "kinfo",
+    "description": "Shows Kubernetes deployment details (namespace, env, version, last deployer+timestamp) for an app, with an fzf picker when the app name is omitted"
+  },
+  {
+    "id": "fix-network",
+    "type": "shell",
+    "path": "shell/fix-network/script.sh",
+    "entry": "fix_network",
+    "description": "Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)"
+  }
+]

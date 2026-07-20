@@ -1,5 +1,5 @@
 # Biblioteca compartilhada de cores/log dos scripts de shell do dev-toolbox.
-# NÃO é um item instalável (fora do MANIFEST) - é sourced via {{ROOT}} pelos
+# NÃO é um item instalável (fora do MANIFEST.json) - é sourced via {{ROOT}} pelos
 # scripts que precisam ("source '{{ROOT}}/shell/_lib/log.sh'" dentro da
 # função, {{ROOT}} vira path absoluto na hora do install.sh). Guard evita
 # redefinição caso mais de um script sourced na mesma sessão o faça.
