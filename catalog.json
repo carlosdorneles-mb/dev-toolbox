@@ -30,7 +30,7 @@
   {
     "id": "fix-network",
     "type": "shell",
-    "path": "shell/fix-network/script.sh",
+    "path": "shell/fix_network/script.sh",
     "entry": "fix-network",
     "description": "Fixes network instability: resets IPv6/DNS, restarts NetworkManager and Netskope (Linux only)"
   }
