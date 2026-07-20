@@ -6,7 +6,7 @@
 #   ./install.sh --interactive  # deixa escolher quais itens instalar
 #
 # Idempotente - roda de novo a qualquer momento (ex: após "git pull") pra
-# sincronizar itens novos do MANIFEST.json. A seleção feita no modo interativo
+# sincronizar itens novos do catalog.json. A seleção feita no modo interativo
 # fica salva em .installed e é reaproveitada como padrão da próxima vez.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ else
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="$ROOT/MANIFEST.json"
+CATALOG="$ROOT/catalog.json"
 STATE_FILE="$ROOT/.installed"
 INTERACTIVE=0
 [[ "${1:-}" == "--interactive" ]] && INTERACTIVE=1
@@ -26,16 +26,16 @@ INTERACTIVE=0
 bash "$ROOT/deps.sh"
 echo ""
 
-mapfile -t ids < <(jq -r '.[].id' "$MANIFEST")
-mapfile -t types < <(jq -r '.[].type' "$MANIFEST")
-mapfile -t paths < <(jq -r '.[].path' "$MANIFEST")
-mapfile -t entries < <(jq -r '.[].entry' "$MANIFEST")
-mapfile -t descs < <(jq -r '.[].description' "$MANIFEST")
+mapfile -t ids < <(jq -r '.[].id' "$CATALOG")
+mapfile -t types < <(jq -r '.[].type' "$CATALOG")
+mapfile -t paths < <(jq -r '.[].path' "$CATALOG")
+mapfile -t entries < <(jq -r '.[].entry' "$CATALOG")
+mapfile -t descs < <(jq -r '.[].description' "$CATALOG")
 
 # modo nao-interativo instala/atualiza TUDO, sempre - .installed so serve de
 # pre-selecao pro checklist do --interactive (respeita o que foi desmarcado
 # antes), nunca pra restringir uma rodada sem --interactive. Sem isso, um
-# item novo no MANIFEST.json (ex: apos "git pull") nunca seria instalado sozinho
+# item novo no catalog.json (ex: apos "git pull") nunca seria instalado sozinho
 # pra quem ja tinha um .installed de uma selecao anterior.
 declare -A selected
 for id in "${ids[@]}"; do selected["$id"]=1; done

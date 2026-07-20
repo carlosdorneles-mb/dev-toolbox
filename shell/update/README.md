@@ -24,7 +24,7 @@ cada bloco só se o binário correspondente existir na máquina
 
 - **dev-toolbox** - `git pull --ff-only` no próprio repo, depois roda
   `install.sh` de novo (idempotente, pega novos aliases/scripts do
-  MANIFEST.json mesmo sem mudança); se houver alterações locais não
+  catalog.json mesmo sem mudança); se houver alterações locais não
   commitadas o pull falha e o comando avisa e segue com o resto
 - **APT** (`apt update && apt upgrade`) - sempre roda, sem checagem prévia;
   o `apt update` dessa etapa é reaproveitado pelos blocos `--only-upgrade`

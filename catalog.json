@@ -31,7 +31,7 @@
     "id": "fix-network",
     "type": "shell",
     "path": "shell/fix-network/script.sh",
-    "entry": "fix_network",
+    "entry": "fix-network",
     "description": "Fixes network instability, cross-platform Ubuntu+macOS via uname detection: optionally disables IPv6 (nmcli/networksetup) and flushes DNS cache (resolvectl/dscacheutil), restarts NetworkManager and Netskope (stagentd) if present (Linux only)"
   }
 ]
