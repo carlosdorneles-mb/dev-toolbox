@@ -23,7 +23,7 @@ STATE_FILE="$ROOT/.installed"
 INTERACTIVE=0
 [[ "${1:-}" == "--interactive" ]] && INTERACTIVE=1
 
-bash "$ROOT/deps.sh" || echo "${YELLOW}⚠${RESET} seguindo com a instalação mesmo assim - aliases funcionam em modo degradado sem as dependências acima."
+bash "$ROOT/deps.sh"
 echo ""
 
 ids=()

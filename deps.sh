@@ -2,6 +2,8 @@
 # Verifica/instala dependências externas usadas pelos itens do dev-toolbox
 # (jq, fzf, gh, ...). Detecta o que já está instalado e a versão; instala o
 # que falta e atualiza o que estiver abaixo da versão mínima exigida.
+# jq e fzf são obrigatórios (instalados sem perguntar, falha aborta o
+# install.sh); gh é opcional (pede confirmação antes de instalar/atualizar).
 #
 # Uso:
 #   ./deps.sh              # verifica e instala/atualiza o que for preciso

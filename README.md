@@ -86,12 +86,16 @@ duplicado (ex: `git chain` aparecendo mais de uma vez).
 
 ## Dependências
 
-Alguns itens exigem `jq`, `fzf` e/ou `gh` instalados. `install.sh` roda
-`deps.sh` automaticamente antes de instalar/atualizar - ele detecta o que já
-está presente (e a versão), instala o que falta e atualiza o que estiver
-abaixo da versão mínima exigida. Suporta **macOS** (via `brew`) e
-**Ubuntu/Debian** (via `apt-get`, incluindo o repo oficial do `gh` quando
-necessário).
+`jq` e `fzf` são **obrigatórios** - vários itens do toolbox exigem os dois.
+`install.sh` roda `deps.sh` automaticamente antes de instalar/atualizar - ele
+detecta o que já está presente (e a versão), instala o que falta e atualiza
+o que estiver abaixo da versão mínima exigida; se a instalação de `jq`/`fzf`
+falhar, `install.sh` aborta. Suporta **macOS** (via `brew`) e
+**Ubuntu/Debian** (via `apt-get`).
+
+`gh` é **opcional** (só usado por `git chain` pra número/status de PR) -
+`deps.sh` pede confirmação antes de instalar/atualizar, incluindo o repo
+oficial do `gh` via `apt-get` quando necessário.
 
 Pra só checar sem instalar nada:
 

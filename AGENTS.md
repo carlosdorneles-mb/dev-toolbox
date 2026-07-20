@@ -71,8 +71,11 @@ antigo etc) já tem um alias com o mesmo nome da função (`entry` no
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
 toolbox (hoje: `jq`, `fzf`, `gh`) via `brew` (macOS) ou `apt-get`
 (Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do próprio script -
-não existe arquivo de configuração externo pra isso. `install.sh` chama ele
-antes de sincronizar os aliases e segue em modo degradado se algo falhar.
+não existe arquivo de configuração externo pra isso. `jq` e `fzf` são
+obrigatórios - instalados sem perguntar, e se a instalação falhar
+`install.sh` aborta (`set -euo pipefail`, sem fallback degradado). `gh` é
+opcional - pede confirmação antes de instalar/atualizar; se o usuário
+recusar, `install.sh` segue normalmente.
 
 ## Antes de commitar
 
