@@ -7,6 +7,13 @@
     "description": "Shows the branch chain (PR stack) from current to main"
   },
   {
+    "id": "merged-check",
+    "type": "git",
+    "path": "git/merged-check/alias.gitconfig",
+    "entry": "merged-check",
+    "description": "Lists local branches already merged into origin's root branch, with an optional --delete"
+  },
+  {
     "id": "aliases",
     "type": "shell",
     "path": "shell/aliases/script.sh",
