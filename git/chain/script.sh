@@ -234,23 +234,40 @@ fi
 # aviso em stderr, amarelo + ⚠ (emoji tem cor propria, sempre aparece mesmo
 # com --no-color/NO_COLOR - so a cor do texto some, igual APPROVE_MARK acima).
 # --no-warning silencia tudo (util em script que so quer a cadeia, sem ruido).
+# gum e so um enhancement aqui (nao obrigatorio, ao contrario de
+# check-local/remote-branches) - sem gum cai no echo manual de sempre.
 _warn() {
   (( no_warning )) && return
-  echo "⚠ ${YELLOW}aviso: $*${RESET}" >&2
+  if (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l warn "$*"
+  else
+    echo "⚠ ${YELLOW}aviso: $*${RESET}" >&2
+  fi
 }
 
 real_current=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ -z "$target_arg" && "$real_current" == "HEAD" ]]; then
-  echo "erro: HEAD destacado (detached) - va para uma branch antes de rodar git chain, ou passe um branch/PR como argumento" >&2
+  if (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l error "HEAD destacado (detached) - vá para uma branch antes de rodar git chain, ou passe um branch/PR como argumento"
+  else
+    echo "erro: HEAD destacado (detached) - va para uma branch antes de rodar git chain, ou passe um branch/PR como argumento" >&2
+  fi
   exit 1
 fi
 
-# dispara o fetch em background ja - nao depende da cadeia resolvida, roda em
-# paralelo com as chamadas do provider que vem a seguir em vez de esperar elas
-# acabarem. --all: repo pode ter mais de um remote (ex: origin + upstream de um fork)
-git fetch --all --quiet 2>/dev/null &
-_fetch_pid=$!
+# com gum (terminal + fora de --text/--json): fetch sincrono com spinner
+# visivel, mais simples de mostrar progresso que "roda em background e cala a
+# boca". Sem gum, cai no truque de sempre: dispara em background ja (nao
+# depende da cadeia resolvida) e so espera o resultado mais adiante, quando
+# de fato precisa dele - roda em paralelo com as chamadas do provider a seguir.
+# --all: repo pode ter mais de um remote (ex: origin + upstream de um fork)
+if (( is_tty )) && (( ! text_mode )) && (( ! json_mode )) && command -v gum &>/dev/null; then
+  gum spin --spinner dot --title "sincronizando remotos..." -- git fetch --all --quiet
+else
+  git fetch --all --quiet 2>/dev/null &
+  _fetch_pid=$!
+fi
 
 resolve_remotes_ordered
 resolve_root_branch
@@ -267,19 +284,31 @@ fi
 if [[ -n "$target_arg" ]]; then
   if [[ "$target_arg" =~ ^[0-9]+$ ]]; then
     if ! pr_provider_available; then
-      echo "erro: buscar por numero de PR exige o provider de PR disponivel ($(pr_provider_label): gh+jq instalados)" >&2
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l error "buscar por número de PR exige o provider de PR disponível ($(pr_provider_label): gh+jq instalados)"
+      else
+        echo "erro: buscar por numero de PR exige o provider de PR disponivel ($(pr_provider_label): gh+jq instalados)" >&2
+      fi
       exit 1
     fi
     resolved_branch=$(pr_provider_resolve_pr_branch "$target_arg")
     if [[ -z "$resolved_branch" ]]; then
-      echo "erro: PR #$target_arg nao encontrada (ou sem permissao de acesso)" >&2
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l error "PR #$target_arg não encontrada (ou sem permissão de acesso)"
+      else
+        echo "erro: PR #$target_arg nao encontrada (ou sem permissao de acesso)" >&2
+      fi
       exit 1
     fi
     current="$resolved_branch"
   else
     current="$target_arg"
     if [[ -z "$(_ref_for "$current")" ]]; then
-      echo "erro: branch '$current' nao encontrada (nem local nem em nenhum remote)" >&2
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l error "branch '$current' não encontrada (nem local nem em nenhum remote)"
+      else
+        echo "erro: branch '$current' nao encontrada (nem local nem em nenhum remote)" >&2
+      fi
       exit 1
     fi
   fi
@@ -330,7 +359,9 @@ if (( truncated )); then
   _warn "nao foi possivel resolver o parent de '$current' - cadeia truncada"
 fi
 
-wait "$_fetch_pid" 2>/dev/null  # so espera o fetch em background aqui, na hora que o resultado importa
+# so espera o fetch em background aqui, na hora que o resultado importa -
+# com gum, o fetch acima ja rodou sincrono (com spinner), nao ha o que esperar
+[[ -n "${_fetch_pid:-}" ]] && wait "$_fetch_pid" 2>/dev/null
 
 # --text: so os nomes, raiz primeiro, sem cor/PR/ahead-behind - sai direto,
 # nao precisa dos dados que os outros modos calculam a seguir
