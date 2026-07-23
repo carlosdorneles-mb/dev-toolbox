@@ -398,19 +398,27 @@ if (( delete_mode )); then
     echo "nenhuma branch mergeada ou stale pra apagar" >&2
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
-  elif (( is_tty )) && command -v fzf &>/dev/null; then
-    mapfile -t selected < <(printf '%s\n' "${candidates[@]}" | fzf -m \
-      --delimiter=$'\t' --with-nth=1,2 \
-      --header=$'branches candidatas - digite p/ filtrar\nTAB marca p/ apagar, ENTER confirma' \
-      --prompt='filtrar> ' \
-      --marker='✓ ' --pointer='▸')
-    for s in "${selected[@]}"; do to_delete+=("${s%%$'\t'*}"); done
+  elif ! command -v gum &>/dev/null; then
+    echo "erro: 'gum' não encontrado - obrigatório pra selecionar/confirmar branches no --delete interativo (ou use --yes)" >&2
+    echo "instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
+    exit 1
+  elif (( ! is_tty )); then
+    echo "erro: --delete sem --yes precisa de terminal interativo pra selecionar as branches (via gum)" >&2
+    exit 1
   else
+    items=()
     for c in "${candidates[@]}"; do
       b="${c%%$'\t'*}"
-      read -r -p "apagar '$b' no remote '$repo'? [y/N] " confirm
-      [[ "$confirm" == "y" || "$confirm" == "Y" ]] && to_delete+=("$b")
+      tag="${c#*$'\t'}"
+      items+=("$b $tag")
     done
+    mapfile -t selected < <(printf '%s\n' "${items[@]}" | gum choose --no-limit \
+      --header="branches candidatas - espaço marca, enter confirma")
+    for s in "${selected[@]}"; do to_delete+=("${s%% *}"); done
+
+    if (( ${#to_delete[@]} > 0 )) && ! gum confirm "apagar ${#to_delete[@]} branch(es) no remote '$repo'?"; then
+      to_delete=()
+    fi
   fi
 
   for b in "${to_delete[@]}"; do

@@ -46,17 +46,19 @@ locais, roda de qualquer diretório.
 
 `--delete` apaga as branches candidatas: por padrão, mergeadas **ou**
 stale sem PR aberta (união dos dois grupos). `--only-merged`/`--only-stale`
-restringem a candidatura a só um dos grupos. Com `fzf` instalado (e
-terminal interativo), abre seleção múltipla - TAB marca, ENTER confirma.
-Sem `fzf`, cai pra confirmação y/N por branch. `--yes`/`-y` pula qualquer
-seleção/confirmação e apaga todas de uma vez. Branch default e branches
+restringem a candidatura a só um dos grupos. Sem `--yes`, a seleção usa
+`gum choose --no-limit` (espaço marca, enter confirma) seguido de
+`gum confirm` pra confirmar a deleção - exige terminal interativo e `gum`
+instalado, sem fallback (erro com instrução de instalação se faltar
+qualquer um dos dois). `--yes`/`-y` pula seleção/confirmação e apaga
+todas de uma vez, sem precisar de `gum`. Branch default e branches
 `protected` nunca entram como candidatas.
 
 ## Opções
 
 | Flag | Efeito |
 |---|---|
-| `--delete` | apaga as branches candidatas encontradas (seleção via `fzf` se disponível, senão y/N por branch) |
+| `--delete` | apaga as branches candidatas encontradas (seleção via `gum` - obrigatório sem `--yes`) |
 | `--yes`, `-y` | junto com `--delete`, apaga todas sem seleção/confirmação |
 | `--stale-days N` | idade em dias do último commit acima da qual marca "stale" (default: 90) |
 | `--only-merged` | mostra/considera só branches mergeadas |
@@ -77,13 +79,13 @@ MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atr�
 $ git check-remote-branches org/repo --only-merged --delete
 STATUS            BRANCH          CRIADA POR  ATUALIZADA POR  IDADE
 MERGED [PR #120]  fix/old-bugfix  joana       carlos          45 dias atrás
-# abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
+# abre gum choose - espaço marca, ENTER confirma, depois gum confirm
 Deleted branch fix/old-bugfix (remote: org/repo).
 ```
 
 ## Dependências
 
 `gh` (autenticado, `gh auth login`) e `jq` são dependências obrigatórias -
-todo caminho de código parseia JSON de resposta da API. `fzf` é opcional -
-usado só na seleção do `--delete` interativo (funciona sem, com fallback
-pra y/N por branch).
+todo caminho de código parseia JSON de resposta da API. `gum` é
+obrigatório pra `--delete` sem `--yes` (seleção via `gum choose` +
+confirmação via `gum confirm`, sem fallback) - `--yes` não precisa dele.
