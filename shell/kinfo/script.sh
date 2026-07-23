@@ -1,5 +1,5 @@
 # Comando "kinfo": mostra detalhes de um deployment/pod no Kubernetes
-# (namespace, env, versão, quem/quando fez o último deploy). Com fzf
+# (namespace, env, versão, quem/quando fez o último deploy). Com gum
 # instalado e o nome do app omitido, abre um seletor com os deployments do
 # namespace.
 #
@@ -14,13 +14,13 @@ Uso:
 
 Descrição:
   Mostra namespace, env, versão e quem/quando fez o último deploy. Com
-  fzf instalado e o nome do app omitido, abre um seletor com os
+  gum instalado e o nome do app omitido, abre um seletor com os
   deployments do namespace.
 
 Opções:
   <ambiente>     namespace do Kubernetes (fallback: $K_ENV)
   [nome-do-app]  nome do deployment (fallback: $K_APP; sem os dois, abre
-                 seletor fzf se instalado)
+                 seletor gum se instalado)
   -h             mostra esta ajuda
 EOF
 }
@@ -57,9 +57,9 @@ kinfo() {
   KCTX="$(kubectl config current-context 2>/dev/null)"
   [ -n "$KCTX" ] && echo -e "${BLUE}Context:${NC} $KCTX"
 
-  # 2. Lógica do App e Alerta do fzf
+  # 2. Lógica do App e Alerta do gum
   if [ -z "$APP" ]; then
-    if command -v fzf >/dev/null 2>&1; then
+    if command -v gum >/dev/null 2>&1; then
       echo -e "${BLUE}Buscando apps no namespace '$ENV'...${NC}"
       local lista
       lista="$(kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)"
@@ -67,16 +67,14 @@ kinfo() {
         echo -e "${RED}Nenhum deployment encontrado no namespace '$ENV'.${NC}"
         return 1
       fi
-      APP=$(echo "$lista" | tr ' ' '\n' | fzf --height 40% --reverse --border --header="Selecione o App [$ENV]:")
+      APP=$(echo "$lista" | tr ' ' '\n' | gum filter --height 15 --header="Selecione o App [$ENV]:")
       [ -z "$APP" ] && { echo "Operação cancelada."; return 0; }
     else
       # Alerta de instalação
       echo -e "${RED}--------------------------------------------------------"
-      echo -e "AVISO: Nome do app não informado e 'fzf' não detectado."
+      echo -e "AVISO: Nome do app não informado e 'gum' não detectado."
       echo -e "--------------------------------------------------------${NC}"
-      echo -e "Para selecionar apps visualmente, instale o ${GREEN}fzf${NC}:"
-      echo -e "  • ${YELLOW}macOS${NC}:  brew install fzf"
-      echo -e "  • ${YELLOW}Ubuntu${NC}: sudo apt install fzf"
+      echo -e "Instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash"
       echo -e ""
       echo -e "Ou informe o app manualmente: ${BLUE}kinfo $ENV <nome-app>${NC}"
       echo -e "${RED}--------------------------------------------------------${NC}"

@@ -1,6 +1,6 @@
 # Coleta bruta (sem header, sem formatação) dos aliases de shell + git numa
 # tabela TIPO\tNOME\tFONTE\tCOMANDO. Usada tanto pelo "aliases" (listagem)
-# quanto pelo "aliases -r/--run" (menu fzf executável).
+# quanto pelo "aliases -r/--run" (menu gum executável).
 #
 # git aliases: origem exata via "git config --show-origin" - sem heuristica.
 # shell aliases: "alias" (builtin) nao guarda origem, entao a fonte e melhor
@@ -80,7 +80,7 @@ _dtb_aliases_collect() {
 
 # Comando "aliases": lista todos os aliases (shell + git) numa tabela,
 # indicando de onde cada um vem (dev-toolbox ou outra fonte). Com
-# -r/--run, abre um menu fzf pra escolher e executar um deles na hora.
+# -r/--run, abre um menu gum pra escolher e executar um deles na hora.
 #
 # Uso: aliases [-r|--run] [--only-dev-toolbox]
 # Uso: aliases -h | --help
@@ -97,7 +97,7 @@ Descrição:
   (~/.bashrc, ~/.zshrc, ~/.gitconfig etc).
 
 Opções:
-  -r, --run             abre um menu fzf (NOME + COMANDO) pra escolher um
+  -r, --run             abre um menu gum (NOME + COMANDO) pra escolher um
                         alias e executá-lo na hora
   --only-dev-toolbox    mostra só os aliases com FONTE=dev-toolbox
                         (combina com -r/--run)
@@ -119,16 +119,14 @@ aliases() {
   # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -
   # mesma convenção do resto do dev-toolbox, ver shell/_lib/log.sh)
   source "{{ROOT}}/shell/_lib/log.sh"
-  local bold="$_DTB_BOLD" reset="$_DTB_RESET" red="$_DTB_RED" yellow="$_DTB_YELLOW" green="$_DTB_GREEN"
+  local bold="$_DTB_BOLD" reset="$_DTB_RESET" red="$_DTB_RED"
 
   if (( run )); then
-    if ! command -v fzf >/dev/null 2>&1; then
+    if ! command -v gum >/dev/null 2>&1; then
       echo -e "${red}--------------------------------------------------------"
-      echo "AVISO: 'fzf' não encontrado - obrigatório pro menu executável."
+      echo "AVISO: 'gum' não encontrado - obrigatório pro menu executável."
       echo -e "--------------------------------------------------------${reset}"
-      echo -e "Instale o ${green}fzf${reset}:"
-      echo -e "  • ${yellow}macOS${reset}:  brew install fzf"
-      echo -e "  • ${yellow}Ubuntu${reset}: sudo apt install fzf"
+      echo "Instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash"
       return 1
     fi
 
@@ -140,15 +138,32 @@ aliases() {
       return 0
     fi
 
-    local picked tipo nome fonte comando
-    picked="$(printf '%s\n' "$raw" \
-      | fzf --delimiter='\t' --with-nth=2,4 \
-            --prompt='executar alias> ' \
-            --header='NOME  COMANDO   |  ENTER: executa  |  ESC: cancela' \
-            --preview='printf "tipo:    %s\nnome:    %s\nfonte:   %s\ncomando: %s\n" {1} {2} {3} {4}' \
-            --preview-window='down,4,wrap' \
-            --height='~60%' --layout=reverse)"
-    [[ -z "$picked" ]] && { echo "Operação cancelada."; return 0; }
+    # gum choose so mostra a linha crua - monta um display "NOME  COMANDO"
+    # alinhado, em array paralelo ao raw (mesmo indice), pra recuperar o
+    # registro completo (tipo/nome/fonte/comando) depois da escolha.
+    local raw_lines=() display_lines=() line _nome _comando max_nome=0
+    mapfile -t raw_lines <<< "$raw"
+    for line in "${raw_lines[@]}"; do
+      IFS=$'\t' read -r _ _nome _ _ <<< "$line"
+      (( ${#_nome} > max_nome )) && max_nome=${#_nome}
+    done
+    for line in "${raw_lines[@]}"; do
+      IFS=$'\t' read -r _ _nome _ _comando <<< "$line"
+      display_lines+=("$(printf '%-*s  %s' "$max_nome" "$_nome" "$_comando")")
+    done
+
+    local picked_display tipo nome fonte comando picked=""
+    picked_display="$(printf '%s\n' "${display_lines[@]}" | gum choose \
+      --header="executar alias - espaço/enter escolhe, esc cancela")"
+    [[ -z "$picked_display" ]] && { echo "Operação cancelada."; return 0; }
+
+    local i
+    for i in "${!display_lines[@]}"; do
+      if [[ "${display_lines[$i]}" == "$picked_display" ]]; then
+        picked="${raw_lines[$i]}"
+        break
+      fi
+    done
 
     IFS=$'\t' read -r tipo nome fonte comando <<< "$picked"
 

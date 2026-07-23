@@ -42,6 +42,11 @@ update() {
 
   source "{{ROOT}}/shell/_lib/log.sh"
 
+  if [[ -t 1 ]] && ! command -v gum &>/dev/null; then
+    echo "erro: 'gum' não encontrado - instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
+    return 1
+  fi
+
   local os
   case "$(uname -s)" in
     Darwin) os="macos" ;;
@@ -75,68 +80,57 @@ update() {
   # APT (Ubuntu/Debian - inexistente no macOS, onde o Homebrew abaixo cobre
   # tanto formulas quanto casks, incluindo os apps GUI checados mais abaixo)
   if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-    dtb_log_step "Atualizando pacotes APT..."
-    sudo apt update -y && sudo apt upgrade -y
+    dtb_run_step "Atualizando pacotes APT..." bash -c 'sudo apt update -y && sudo apt upgrade -y'
   fi
 
   # Homebrew
   if command -v brew &>/dev/null; then
-    dtb_log_step "Atualizando Homebrew..."
-    brew update && brew upgrade
+    dtb_run_step "Atualizando Homebrew..." bash -c 'brew update && brew upgrade'
   fi
 
   # UV
   if command -v uv &>/dev/null; then
-    dtb_log_step "Atualizando UV..."
-    uv self update
+    dtb_run_step "Atualizando UV..." uv self update
   fi
 
   # Poetry
   if command -v poetry &>/dev/null; then
-    dtb_log_step "Atualizando Poetry..."
-    poetry self update
+    dtb_run_step "Atualizando Poetry..." poetry self update
   fi
 
   # Mise
   if command -v mise &>/dev/null; then
-    dtb_log_step "Atualizando Mise..."
-    mise self-update -y
+    dtb_run_step "Atualizando Mise..." mise self-update -y
   fi
 
   # Flatpak
   if command -v flatpak &>/dev/null; then
-    dtb_log_step "Atualizando pacotes Flatpak..."
-    flatpak update -y
+    dtb_run_step "Atualizando pacotes Flatpak..." flatpak update -y
   fi
 
   # Snap
   if command -v snap &>/dev/null; then
-    dtb_log_step "Atualizando pacotes Snap..."
-    snap refresh
+    dtb_run_step "Atualizando pacotes Snap..." snap refresh
   fi
 
   # Aqua
   if command -v aqua &>/dev/null; then
-    dtb_log_step "Atualizando Aqua..."
-    aqua upa
+    dtb_run_step "Atualizando Aqua..." aqua upa
   fi
 
   # Google Cloud SDK
   if command -v gcloud &>/dev/null; then
-    dtb_log_step "Atualizando Google Cloud SDK..."
-    gcloud components update --quiet
+    dtb_run_step "Atualizando Google Cloud SDK..." gcloud components update --quiet
   fi
 
   # Rustup
   if command -v rustup &>/dev/null; then
-    dtb_log_step "Atualizando Rustup..."
-    rustup update
+    dtb_run_step "Atualizando Rustup..." rustup update
   fi
 
   # Pipx
   if command -v pipx &>/dev/null; then
-    dtb_log_step "Atualizando pacotes Pipx..."
-    pipx upgrade-all
+    dtb_run_step "Atualizando pacotes Pipx..." pipx upgrade-all
   fi
 
   # Cursor (deb direto da API do Cursor - só faz sentido no linux; no
@@ -161,31 +155,26 @@ update() {
   # VS Code (pacote apt - no macOS, se instalado via brew cask, já foi
   # coberto pelo bloco Homebrew acima)
   if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v code &>/dev/null; then
-    dtb_log_step "Atualizando VS Code..."
-    sudo apt install --only-upgrade code
+    dtb_run_step "Atualizando VS Code..." sudo apt install --only-upgrade code
   fi
 
   # Sublime Text (idem VS Code)
   if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v subl &>/dev/null; then
-    dtb_log_step "Atualizando Sublime Text..."
-    sudo apt install --only-upgrade sublime-text
+    dtb_run_step "Atualizando Sublime Text..." sudo apt install --only-upgrade sublime-text
   fi
 
   # Podman (idem VS Code)
   if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v podman &>/dev/null; then
-    dtb_log_step "Atualizando Podman..."
-    sudo apt install --only-upgrade podman
+    dtb_run_step "Atualizando Podman..." sudo apt install --only-upgrade podman
   fi
 
   # GitHub CLI - binário via apt só no linux; extensões (`gh extension`) são
   # multiplataforma, então rodam em qualquer OS onde `gh` existir
   if command -v gh &>/dev/null; then
     if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-      dtb_log_step "Atualizando GitHub CLI..."
-      sudo apt install --only-upgrade gh
+      dtb_run_step "Atualizando GitHub CLI..." sudo apt install --only-upgrade gh
     fi
-    dtb_log_step "Atualizando extensões do GitHub CLI..."
-    gh extension upgrade --all
+    dtb_run_step "Atualizando extensões do GitHub CLI..." gh extension upgrade --all
   fi
 
   # Docker Desktop (baixa/instala .deb + systemctl - mecanismo exclusivo do
@@ -213,14 +202,12 @@ update() {
 
   # Mac App Store (via `mas` - https://github.com/mas-cli/mas)
   if [[ "$os" == "macos" ]] && command -v mas &>/dev/null; then
-    dtb_log_step "Atualizando apps da Mac App Store..."
-    mas upgrade
+    dtb_run_step "Atualizando apps da Mac App Store..." mas upgrade
   fi
 
   # Limpeza (apt - inexistente no macOS)
   if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-    dtb_log_step "Limpando pacotes órfãos (autoremove/autoclean)..."
-    sudo apt autoremove -y && sudo apt autoclean
+    dtb_run_step "Limpando pacotes órfãos (autoremove/autoclean)..." bash -c 'sudo apt autoremove -y && sudo apt autoclean'
   fi
 
   echo ""

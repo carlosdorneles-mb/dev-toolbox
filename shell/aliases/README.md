@@ -39,10 +39,11 @@ Colunas: `TIPO` (`shell`/`git`), `NOME`, `FONTE`, `COMANDO`.
 
 ## Menu executável (`-r`/`--run`)
 
-Abre um seletor `fzf` com NOME + COMANDO de cada alias; ao escolher um e
-apertar ENTER, executa na hora - alias `git` roda como `git <nome>`, alias
-de shell roda via `eval` do comando (mesmo texto que aparece na tabela).
-ESC cancela sem executar nada. Requer `fzf` instalado (ver `deps.sh`).
+Abre um seletor `gum choose` com NOME + COMANDO de cada alias; ao escolher
+um e apertar ENTER, executa na hora - alias `git` roda como `git <nome>`,
+alias de shell roda via `eval` do comando (mesmo texto que aparece na
+tabela). ESC cancela sem executar nada. Requer `gum` instalado (ver
+`deps.sh`) - sem fallback, erro com instrução de instalação se faltar.
 
 ## `--only-dev-toolbox`
 
@@ -53,7 +54,7 @@ FONTE=dev-toolbox, escondendo os de `~/.bashrc`/`~/.zshrc`/`~/.gitconfig`.
 
 Nenhuma dependência externa pra listagem - só `bash`/`zsh`, `awk` e `git`
 (esse último só pra listar os aliases de git; sem ele, a tabela sai só com
-os de shell). O `-r`/`--run` precisa de `fzf` instalado.
+os de shell). O `-r`/`--run` precisa de `gum` instalado.
 
 ## Exemplo
 

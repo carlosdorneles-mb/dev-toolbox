@@ -13,7 +13,7 @@ kinfo -h | --help
 - `<ambiente>` (obrigatório) - namespace do Kubernetes. Se omitido, cai no
   fallback da variável de ambiente `$K_ENV`.
 - `[nome-do-app]` (opcional) - nome do deployment. Se omitido, cai no
-  fallback de `$K_APP`; se nenhum dos dois existir e `fzf` estiver
+  fallback de `$K_APP`; se nenhum dos dois existir e `gum` estiver
   instalado, abre um seletor com os deployments do namespace.
 - `-h`/`--help` - mostra a ajuda embutida e sai (ignora `<ambiente>`).
 
@@ -24,9 +24,9 @@ kinfo -h | --help
 2. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
    deixar claro em qual cluster a consulta vai rodar.
 3. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
-   `fzf` alimentado por `kubectl get deployments -n <ambiente>`. Sem `fzf`
-   instalado e sem app informado, mostra um aviso com instruções de
-   instalação (`brew install fzf` / `sudo apt install fzf`) e sai.
+   `gum filter` alimentado por `kubectl get deployments -n <ambiente>`. Sem
+   `gum` instalado e sem app informado, mostra um aviso com instrução de
+   instalação e sai.
 4. Busca via `kubectl get deployment <app> -n <ambiente> --request-timeout=10s
    -o jsonpath=...`: nome, namespace, variáveis de ambiente
    `OTEL_APP_ENV`/`OTEL_APP_VERSION` do primeiro container, e a annotation
@@ -46,7 +46,7 @@ setado - mesma convenção do resto do dev-toolbox (`deps.sh`, `install.sh`).
 
 - **Obrigatório:** `kubectl` configurado com acesso ao cluster/namespace
   consultado (contexto/kubeconfig já resolvido fora deste comando).
-- **Opcional:** `fzf` - só necessário se o nome do app for omitido e não
+- **Opcional:** `gum` - só necessário se o nome do app for omitido e não
   vier de `$K_APP`.
 
 ## Exemplo

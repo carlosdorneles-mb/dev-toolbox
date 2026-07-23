@@ -48,6 +48,11 @@ fix-network() {
 
   source "{{ROOT}}/shell/_lib/log.sh"
 
+  if [[ -t 1 ]] && ! command -v gum &>/dev/null; then
+    echo "erro: 'gum' não encontrado - instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
+    return 1
+  fi
+
   local os
   case "$(uname -s)" in
     Darwin) os="macos" ;;
@@ -59,52 +64,48 @@ fix-network() {
   dtb_log_banner "Iniciando ajustes de rede..."
 
   # 1. Desativação de IPv6
-  dtb_log_step "Configuração IPv6"
   if [[ "$skip_ipv6" == true ]]; then
     dtb_log_skip "Pulando configuração de IPv6 (--skip-ipv6)."
   else
     if [[ "$os" == "macos" ]]; then
-      echo "  > Desativando IPv6 nos serviços de rede (networksetup)..."
-      networksetup -listallnetworkservices | tail -n +2 | while IFS= read -r service; do
-        sudo networksetup -setv6off "$service" &>/dev/null
-      done
+      dtb_run_step "Desativando IPv6 nos serviços de rede (networksetup)..." bash -c '
+        networksetup -listallnetworkservices | tail -n +2 | while IFS= read -r service; do
+          sudo networksetup -setv6off "$service" &>/dev/null
+        done
+      '
     else
-      echo "  > Desativando IPv6 nos perfis de conexão salvos (nmcli)..."
-      nmcli -t -f NAME connection show | while IFS=$'\n' read -r connection; do
-        sudo nmcli connection modify "$connection" ipv6.method ignore &>/dev/null
-      done
+      dtb_run_step "Desativando IPv6 nos perfis de conexão salvos (nmcli)..." bash -c '
+        nmcli -t -f NAME connection show | while IFS= read -r connection; do
+          sudo nmcli connection modify "$connection" ipv6.method ignore &>/dev/null
+        done
+      '
     fi
-    dtb_log_ok "IPv6 desativado nas conexões de rede."
   fi
 
   # 2. Limpeza do cache de DNS
-  dtb_log_step "Configuração de cache DNS"
   if [[ "$skip_dns" == true ]]; then
     dtb_log_skip "Pulando limpeza de cache DNS (--skip-dns)."
   else
-    echo "  > Limpando cache de DNS..."
     if [[ "$os" == "macos" ]]; then
-      sudo dscacheutil -flushcache
-      sudo killall -HUP mDNSResponder
+      dtb_run_step "Limpando cache de DNS..." bash -c 'sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder'
     else
-      sudo resolvectl flush-caches
+      dtb_run_step "Limpando cache de DNS..." sudo resolvectl flush-caches
     fi
-    dtb_log_ok "Cache de DNS limpo."
   fi
 
   # 3. Reinício de serviços essenciais (NetworkManager - Linux only, sem
   # equivalente direto no macOS)
   if [[ "$os" == "linux" ]]; then
-    echo "  > Reiniciando NetworkManager..."
-    sudo systemctl restart NetworkManager
+    dtb_run_step "Reiniciando NetworkManager..." sudo systemctl restart NetworkManager
 
     # 4. Reinício do Netskope (stagentd - Linux only, sem nome de serviço
     # launchd confiável no macOS)
-    echo "  > Aguardando estabilização da rede (5s) e reiniciando Netskope..."
-    sleep 5
-    if systemctl is-active --quiet stagentd.service || systemctl is-enabled --quiet stagentd.service; then
-      sudo systemctl restart stagentd
-    fi
+    dtb_run_step "Aguardando estabilização da rede (5s) e reiniciando Netskope..." bash -c '
+      sleep 5
+      if systemctl is-active --quiet stagentd.service || systemctl is-enabled --quiet stagentd.service; then
+        sudo systemctl restart stagentd
+      fi
+    '
   else
     dtb_log_skip "Pulando restart de NetworkManager/Netskope (sem equivalente no macOS)."
   fi
