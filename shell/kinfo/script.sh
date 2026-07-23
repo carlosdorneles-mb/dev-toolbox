@@ -26,6 +26,18 @@ Opções:
 EOF
 }
 
+# espera um PID em background mostrando um spinner (gum so "vigia" um
+# comando externo, nao um PID direto - poll leve de 0.1s resolve isso sem
+# precisar redirecionar a saida do comando real por dentro do gum spin,
+# que exigiria escapar o jsonpath dentro de um bash -c aninhado)
+_dtb_kinfo_wait_gum() {
+  local title="$1" pid="$2"
+  if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
+    gum spin --spinner dot --title "$title" -- bash -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
+  fi
+  wait "$pid" 2>/dev/null
+}
+
 kinfo() {
   local arg
   for arg in "$@"; do
@@ -51,6 +63,7 @@ kinfo() {
   # instalado abre um prompt pra digitar em vez de só erro/uso
   if [ -z "$ENV" ] && [ -t 1 ] && command -v gum >/dev/null 2>&1; then
     ENV=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
+    [ -n "$ENV" ] && echo -e "${BLUE}Ambiente:${NC} $ENV"
   fi
   if [ -z "$ENV" ]; then
     echo -e "${RED}Erro: O nome do ambiente (namespace) é obrigatório.${NC}"
@@ -65,9 +78,12 @@ kinfo() {
   # 2. Lógica do App e Alerta do gum
   if [ -z "$APP" ]; then
     if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
-      echo -e "${BLUE}Buscando apps no namespace '$ENV'...${NC}"
-      local lista
-      lista="$(kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)"
+      local lista_tmp lista
+      lista_tmp="$(mktemp)"
+      kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' > "$lista_tmp" 2>/dev/null &
+      _dtb_kinfo_wait_gum "Buscando apps no namespace '$ENV'..." "$!"
+      lista="$(cat "$lista_tmp")"
+      rm -f "$lista_tmp"
       if [ -z "$lista" ]; then
         echo -e "${RED}Nenhum deployment encontrado no namespace '$ENV'.${NC}"
         return 1
@@ -89,8 +105,12 @@ kinfo() {
   fi
 
   # 3. Coleta de dados
-  local DATA_RAW
-  DATA_RAW="$(kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' 2>/dev/null)"
+  local DATA_RAW data_tmp
+  data_tmp="$(mktemp)"
+  kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' > "$data_tmp" 2>/dev/null &
+  _dtb_kinfo_wait_gum "Buscando detalhes do deployment '$APP'..." "$!"
+  DATA_RAW="$(cat "$data_tmp")"
+  rm -f "$data_tmp"
 
   if [ -z "$DATA_RAW" ]; then
     echo -e "${RED}Erro ao buscar detalhes do app '$APP' no namespace '$ENV'.${NC}"

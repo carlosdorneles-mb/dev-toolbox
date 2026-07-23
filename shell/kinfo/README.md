@@ -21,18 +21,19 @@ kinfo -h | --help
 ## Descrição
 
 1. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via prompt
-   `gum input` se `gum` estiver instalado) - sem ele, sai com erro.
+   `gum input` se `gum` estiver instalado - o valor digitado é ecoado de
+   volta) - sem ele, sai com erro.
 2. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
    deixar claro em qual cluster a consulta vai rodar.
 3. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
-   `gum filter` alimentado por `kubectl get deployments -n <ambiente>`. Sem
-   `gum` instalado e sem app informado, mostra um aviso com instrução de
-   instalação e sai.
+   `gum filter` alimentado por `kubectl get deployments -n <ambiente>`
+   (roda com spinner `gum spin` enquanto busca). Sem `gum` instalado e sem
+   app informado, mostra um aviso com instrução de instalação e sai.
 4. Busca via `kubectl get deployment <app> -n <ambiente> --request-timeout=10s
-   -o jsonpath=...`: nome, namespace, variáveis de ambiente
-   `OTEL_APP_ENV`/`OTEL_APP_VERSION` do primeiro container, e a annotation
-   `last_deploy_by`. `Env`/`Version` mostram `<não configurado>` se a env
-   var não existir no deployment.
+   -o jsonpath=...` (com spinner `gum spin` em terminal interativo): nome,
+   namespace, variáveis de ambiente `OTEL_APP_ENV`/`OTEL_APP_VERSION` do
+   primeiro container, e a annotation `last_deploy_by`. `Env`/`Version`
+   mostram `<não configurado>` se a env var não existir no deployment.
 5. Separa a annotation `last_deploy_by` (formato
    `<usuario>-<timestamp ISO8601>`, ex:
    `jefferson.silva-2026-03-12T19:49:17+0000`) em usuário e data/hora,
