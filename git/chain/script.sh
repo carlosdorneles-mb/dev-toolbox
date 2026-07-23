@@ -3,6 +3,7 @@
 _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_script_dir/lib/provider.sh"
 source "$_script_dir/lib/git.sh"
+source "$_script_dir/../../shell/_lib/hints.sh"
 
 tree_mode=1
 no_pr=0
@@ -526,4 +527,16 @@ else
     fi
   done
   echo "$result"
+fi
+
+if (( is_tty )); then
+  dtb_hints_flags=("--inline" "--no-pr" "--text" "--json" "--no-warning")
+  dtb_hints_descs=(
+    "mostra a cadeia em uma linha só, com setas"
+    "esconde tudo relacionado a PR (#NNN, draft, merged, blocked...)"
+    "só os nomes das branches, um por linha (uso em scripts)"
+    "detalhes de cada branch em JSON"
+    "silencia os avisos em stderr (base de PR desatualizada etc)"
+  )
+  dtb_print_random_hint "git chain" "$DIM" "$RESET"
 fi

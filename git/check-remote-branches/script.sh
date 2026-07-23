@@ -2,6 +2,7 @@
 
 _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_script_dir/../../shell/_lib/table.sh"
+source "$_script_dir/../../shell/_lib/hints.sh"
 
 no_color_flag=0
 delete_mode=0
@@ -353,25 +354,24 @@ for b in "${branch_names[@]}"; do
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
-if (( ! any_shown )); then
-  echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2
-  exit 0
-fi
-
 if (( ! delete_mode )) && (( is_tty )); then
-  dica_flags=("--delete" "--only-stale" "--only-merged" "--json" "--stale-days N")
-  dica_descs=(
-    "apaga as candidatas (--yes pula confirmação)"
+  dtb_hints_flags=("--only-stale" "--only-merged" "--json" "--stale-days N")
+  dtb_hints_descs=(
     "mostra só as branches stale"
     "mostra só as branches já mergeadas"
     "saída em JSON pra script/pipe"
     "muda o limite de dias pra marcar stale (default: 90)"
   )
-  dica_width=0
-  for f in "${dica_flags[@]}"; do (( ${#f} > dica_width )) && dica_width=${#f}; done
-  i=$(( RANDOM % ${#dica_flags[@]} ))
-  echo >&2
-  printf -- "${DIM}dica: git check-remote-branches %-${dica_width}s %s${RESET}\n" "${dica_flags[$i]}" "${dica_descs[$i]}" >&2
+  if (( any_shown )); then
+    dtb_hints_flags+=("--delete")
+    dtb_hints_descs+=("apaga as candidatas (--yes pula confirmação)")
+  fi
+  dtb_print_random_hint "git check-remote-branches" "$DIM" "$RESET"
+fi
+
+if (( ! any_shown )); then
+  echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2
+  exit 0
 fi
 
 if (( delete_mode )); then

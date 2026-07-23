@@ -5,6 +5,7 @@ _chain_lib_dir="$_script_dir/../chain/lib"
 source "$_chain_lib_dir/provider.sh"
 source "$_chain_lib_dir/git.sh"
 source "$_script_dir/../../shell/_lib/table.sh"
+source "$_script_dir/../../shell/_lib/hints.sh"
 
 no_color_flag=0
 no_fetch=0
@@ -235,20 +236,16 @@ done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! delete_mode )) && (( is_tty )); then
-  dica_flags=("--json" "--no-fetch")
-  dica_descs=(
+  dtb_hints_flags=("--json" "--no-fetch")
+  dtb_hints_descs=(
     "saída em JSON pra script/pipe"
     "pula o git fetch antes de comparar"
   )
   if (( any_merged )); then
-    dica_flags+=("--delete")
-    dica_descs+=("apaga as mergeadas (--yes pula confirmação)")
+    dtb_hints_flags+=("--delete")
+    dtb_hints_descs+=("apaga as mergeadas (--yes pula confirmação)")
   fi
-  dica_width=0
-  for f in "${dica_flags[@]}"; do (( ${#f} > dica_width )) && dica_width=${#f}; done
-  i=$(( RANDOM % ${#dica_flags[@]} ))
-  echo >&2
-  printf -- "${DIM}dica: git check-local-branches %-${dica_width}s %s${RESET}\n" "${dica_flags[$i]}" "${dica_descs[$i]}" >&2
+  dtb_print_random_hint "git check-local-branches" "$DIM" "$RESET"
 fi
 
 if (( ! any_merged )); then
