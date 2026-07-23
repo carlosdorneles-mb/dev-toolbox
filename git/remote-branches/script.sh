@@ -1,5 +1,8 @@
 #!/bin/bash
 
+_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_script_dir/../../shell/_lib/table.sh"
+
 no_color_flag=0
 delete_mode=0
 yes_mode=0
@@ -17,29 +20,29 @@ git remote-branches - lista branches remotas de um repo GitHub (via API, sem clo
 Uso:
   git remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
 
-Descricao:
+Descrição:
   Pra cada branch remota do repo (exceto a branch default), resolve:
 
     - status de merge: existe PR com state=MERGED apontando essa branch?
     - PR aberta: existe PR com state=OPEN apontando essa branch?
-    - autoria/idade: primeiro commit unico da branch (vs a default) = quem
-      criou/quando (aproximado); ultimo commit = quem atualizou por
-      ultimo/quando
-    - stale: ultimo commit mais antigo que --stale-days (default: 90)
+    - autoria/idade: primeiro commit único da branch (vs a default) = quem
+      criou/quando (aproximado); último commit = quem atualizou por
+      último/quando
+    - stale: último commit mais antigo que --stale-days (default: 90)
 
-  Resolucao do repo (nessa ordem): argumento posicional (org/repo ou URL);
-  senao, detecta pelo diretorio atual (se for um repo git com remote
-  GitHub); senao, pergunta interativamente.
+  Resolução do repo (nessa ordem): argumento posicional (org/repo ou URL);
+  senão, detecta pelo diretório atual (se for um repo git com remote
+  GitHub); senão, pergunta interativamente.
 
   100% via API remota (gh) - nunca faz fetch/clone/leitura de objetos git
   locais.
 
-Opcoes:
-  --delete         apaga (com confirmacao) as branches candidatas encontradas
-  --yes, -y        junto com --delete, nao pede confirmacao por branch
-  --stale-days N   idade em dias do ultimo commit acima da qual marca "stale" (default: 90)
-  --only-merged    mostra/considera so branches mergeadas
-  --only-stale     mostra/considera so branches stale
+Opções:
+  --delete         apaga (com confirmação) as branches candidatas encontradas
+  --yes, -y        junto com --delete, não pede confirmação por branch
+  --stale-days N   idade em dias do último commit acima da qual marca "stale" (default: 90)
+  --only-merged    mostra/considera só branches mergeadas
+  --only-stale     mostra/considera só branches stale
   --no-color       desabilita cores
   --json           array JSON por branch (exige jq)
   -h               mostra esta ajuda
@@ -60,7 +63,7 @@ while [[ $# -gt 0 ]]; do
       stale_days="$1"
       ;;
     -*)
-      echo "erro: opcao desconhecida '$1'" >&2
+      echo "erro: opção desconhecida '$1'" >&2
       exit 1
       ;;
     *)
@@ -80,12 +83,12 @@ if (( show_help )); then
 fi
 
 if ! command -v gh &>/dev/null; then
-  echo "erro: 'gh' (GitHub CLI) nao encontrado - instale e rode 'gh auth login'" >&2
+  echo "erro: 'gh' (GitHub CLI) não encontrado - instale e rode 'gh auth login'" >&2
   exit 1
 fi
 
 if ! command -v jq &>/dev/null; then
-  echo "erro: 'jq' nao encontrado - instale" >&2
+  echo "erro: 'jq' não encontrado - instale" >&2
   exit 1
 fi
 
@@ -95,7 +98,7 @@ if ! gh auth status &>/dev/null; then
 fi
 
 if ! [[ "$stale_days" =~ ^[0-9]+$ ]]; then
-  echo "erro: --stale-days precisa ser um numero inteiro, recebido '$stale_days'" >&2
+  echo "erro: --stale-days precisa ser um número inteiro, recebido '$stale_days'" >&2
   exit 1
 fi
 
@@ -109,7 +112,7 @@ resolve_repo() {
   if [[ -n "$arg" ]]; then
     json=$(gh repo view "$arg" --json nameWithOwner,defaultBranchRef 2>/dev/null)
     if [[ -z "$json" ]]; then
-      echo "erro: nao foi possivel resolver o repo '$arg'" >&2
+      echo "erro: não foi possível resolver o repo '$arg'" >&2
       exit 1
     fi
   else
@@ -119,12 +122,12 @@ resolve_repo() {
         read -r -p "repo GitHub (org/repo ou URL): " arg
       fi
       if [[ -z "$arg" ]]; then
-        echo "erro: nenhum repo informado e nao foi possivel detectar pelo diretorio atual" >&2
+        echo "erro: nenhum repo informado e não foi possível detectar pelo diretório atual" >&2
         exit 1
       fi
       json=$(gh repo view "$arg" --json nameWithOwner,defaultBranchRef 2>/dev/null)
       if [[ -z "$json" ]]; then
-        echo "erro: nao foi possivel resolver o repo '$arg'" >&2
+        echo "erro: não foi possível resolver o repo '$arg'" >&2
         exit 1
       fi
     fi
@@ -134,7 +137,7 @@ resolve_repo() {
   default_branch=$(jq -r '.defaultBranchRef.name // empty' <<< "$json")
 
   if [[ -z "$repo" || -z "$default_branch" ]]; then
-    echo "erro: resposta invalida do 'gh repo view' pro repo '$arg'" >&2
+    echo "erro: resposta inválida do 'gh repo view' pro repo '$arg'" >&2
     exit 1
   fi
 }
@@ -151,9 +154,15 @@ else
   BOLD=""; DIM=""; RESET=""; GREEN=""; YELLOW=""
 fi
 
+checking_msg=0
+if (( is_tty )) && (( ! json_mode )); then
+  printf -- "${DIM}verificando branches remotas...${RESET}" >&2
+  checking_msg=1
+fi
+
 branches_raw=$(gh api "repos/$repo/branches" --paginate 2>/dev/null)
 if [[ -z "$branches_raw" ]]; then
-  echo "erro: nao foi possivel listar as branches de '$repo'" >&2
+  echo "erro: não foi possível listar as branches de '$repo'" >&2
   exit 1
 fi
 
@@ -241,6 +250,8 @@ for b in "${branch_names[@]}"; do
   fetch_compare_info "$b"
 done
 
+(( checking_msg )) && printf -- "\r\033[2K" >&2
+
 if (( json_mode )); then
   json_items=()
   for b in "${branch_names[@]}"; do
@@ -272,30 +283,32 @@ if (( json_mode )); then
 fi
 
 any_shown=0
+table_rows="$(printf 'STATUS\tBRANCH\tCRIADA_POR\tATUALIZADA_POR\tIDADE\tFLAGS\n')"
 for b in "${branch_names[@]}"; do
   _branch_matches_filters "$b" || continue
   any_shown=1
 
   if _branch_merged "$b"; then
-    status="${GREEN}${BOLD}MERGED${RESET}   [PR #${pr_number[$b]}]"
+    status="${GREEN}${BOLD}MERGED${RESET} [PR #${pr_number[$b]}]"
   elif [[ "${pr_state[$b]}" == "OPEN" ]]; then
-    status="${DIM}-        [PR aberta #${pr_number[$b]}]${RESET}"
+    status="${DIM}-${RESET} [PR aberta #${pr_number[$b]}]"
   else
-    status="${DIM}-        [sem PR]${RESET}"
+    status="${DIM}-${RESET} [sem PR]"
   fi
 
-  protected_tag=""
-  [[ "${branch_protected[$b]}" == "true" ]] && protected_tag=" [protected]"
-
-  stale_tag=""
-  [[ "${is_stale[$b]}" == "1" ]] && stale_tag=" ${YELLOW}⚠ stale${RESET}"
+  flags=""
+  [[ "${is_stale[$b]}" == "1" ]] && flags="${YELLOW}⚠ stale${RESET}"
+  if [[ "${branch_protected[$b]}" == "true" ]]; then
+    flags="${flags:+$flags }[protected]"
+  fi
 
   age_label="idade desconhecida"
-  [[ -n "${age_days[$b]}" ]] && age_label="${age_days[$b]} dias atras"
+  [[ -n "${age_days[$b]}" ]] && age_label="${age_days[$b]} dias atrás"
 
-  printf -- "%s %-30s %s -> %s, %s%s%s\n" \
-    "$status" "$b" "${created_by[$b]:-?}" "${updated_by[$b]:-?}" "$age_label" "$stale_tag" "$protected_tag"
+  table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
+    "$status" "$b" "${created_by[$b]:-?}" "${updated_by[$b]:-?}" "$age_label" "$flags")"
 done
+printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! any_shown )); then
   echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2

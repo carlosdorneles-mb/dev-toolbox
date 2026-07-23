@@ -63,18 +63,21 @@ estar desatualizado).
 
 ```bash
 $ git check-merged
-MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
-MERGED   chore/bump-deps                               [ancestor]
--        feat/promotions-autonomous-process            (branch atual)
+STATUS  BRANCH                                       TAGS
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
+MERGED  chore/bump-deps                               [ancestor]
+-       feat/promotions-autonomous-process             (branch atual)
 
 $ git check-merged --delete
-MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
-MERGED   chore/bump-deps                               [ancestor]
+STATUS  BRANCH                                       TAGS
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
+MERGED  chore/bump-deps                               [ancestor]
 # abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
 $ git check-merged --delete --yes
-MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
+STATUS  BRANCH                                       TAGS
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
 # --yes apaga direto, sem seleção/confirmação
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 

@@ -4,6 +4,7 @@ _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _chain_lib_dir="$_script_dir/../chain/lib"
 source "$_chain_lib_dir/provider.sh"
 source "$_chain_lib_dir/git.sh"
+source "$_script_dir/../../shell/_lib/table.sh"
 
 no_color_flag=0
 no_fetch=0
@@ -61,9 +62,10 @@ Opções:
 
 Exemplos:
   $ git check-merged
-  MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
-  MERGED   chore/bump-deps                                [ancestor]
-  -        feat/promotions-autonomous-process              (ainda em uso)
+  STATUS  BRANCH                                       TAGS
+  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
+  MERGED  chore/bump-deps                               [ancestor]
+  -       feat/promotions-autonomous-process             (ainda em uso)
 
   $ git check-merged --delete
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
@@ -198,19 +200,21 @@ if (( json_mode )); then
 fi
 
 any_merged=0
+table_rows="$(printf 'STATUS\tBRANCH\tTAGS\n')"
 for i in "${!results_name[@]}"; do
   b="${results_name[$i]}"
   if (( results_merged[i] )); then
     any_merged=1
     tags="${results_reasons[$i]}"
     (( results_gone[i] )) && tags="${tags:+$tags,}gone"
-    printf -- "${GREEN}${BOLD}MERGED${RESET}   %-50s ${DIM}[%s]${RESET}\n" "$b" "$tags"
+    table_rows+="$(printf '\n%s\t%s\t%s' "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}[$tags]${RESET}")"
   else
     note=""
     [[ "$b" == "$real_current" ]] && note=" (branch atual)"
-    printf -- "${DIM}-        %-50s%s${RESET}\n" "$b" "$note"
+    table_rows+="$(printf '\n%s\t%s\t%s' "${DIM}-${RESET}" "$b" "${DIM}${note}${RESET}")"
   fi
 done
+printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! any_merged )); then
   echo "nenhuma branch local mergeada encontrada (raiz: $root_branch)" >&2
