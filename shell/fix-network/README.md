@@ -7,20 +7,23 @@ Ubuntu/Debian + macOS.
 
 ```bash
 fix-network
+fix-network --skip-ipv6
+fix-network --skip-dns
 fix-network -h | --help
 ```
 
 ## Descrição
 
 Detecta o SO via `uname -s` e pede a senha do `sudo` uma vez no início
-(`sudo -v`). Passos em sequência:
+(`sudo -v`). Passos 1 e 2 rodam por padrão, sem confirmação; use as flags
+pra pular. Passos em sequência:
 
-1. **IPv6** (opcional, pede confirmação `y/N`)
+1. **IPv6** (roda por padrão; `--skip-ipv6` pula)
    - Linux: desativa IPv6 (`ipv6.method ignore`) em todos os perfis salvos
      do NetworkManager via `nmcli`.
    - macOS: desativa IPv6 (`networksetup -setv6off`) em todos os serviços
      de rede listados por `networksetup -listallnetworkservices`.
-2. **Cache de DNS** (opcional, pede confirmação `y/N`)
+2. **Cache de DNS** (roda por padrão; `--skip-dns` pula)
    - Linux: limpa via `resolvectl flush-caches`.
    - macOS: limpa via `dscacheutil -flushcache` + `killall -HUP mDNSResponder`.
 3. **NetworkManager** - só no Linux, reinicia sempre
@@ -52,6 +55,6 @@ Detecta o SO via `uname -s` e pede a senha do `sudo` uma vez no início
 
 - No Linux, não é idempotente no sentido de "sem efeito colateral":
   reinicia `NetworkManager` (derruba a conexão por alguns segundos) toda
-  vez que roda, independente das respostas dadas aos prompts de IPv6/DNS.
-- No macOS, o script só toca no que o usuário confirmar (IPv6/DNS) - não
-  há restart incondicional de rede.
+  vez que roda, independente das flags `--skip-ipv6`/`--skip-dns`.
+- No macOS, IPv6 e DNS rodam sem confirmação por padrão (a menos que
+  puladas via flag) - não há restart incondicional de rede.

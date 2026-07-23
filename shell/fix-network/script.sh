@@ -1,29 +1,40 @@
 # Comando "fix-network": ajustes de rede pra resolver instabilidade de
-# conexão - desativa IPv6 (opcional), limpa cache de DNS (opcional), reinicia
-# NetworkManager e o agente Netskope (stagentd), se presente. Cross-platform
+# conexão - desativa IPv6, limpa cache de DNS, reinicia NetworkManager e o
+# agente Netskope (stagentd), se presente. Ambos os steps 1 e 2 rodam por
+# padrão sem confirmação; --skip-ipv6/--skip-dns pulam cada um. Cross-platform
 # Ubuntu/Debian + macOS via uname; passos 3 e 4 (restart de rede/Netskope)
 # não têm equivalente confiável no macOS e são pulados lá.
 #
-# Uso: fix-network
+# Uso: fix-network [--skip-ipv6] [--skip-dns]
 # Uso: fix-network -h | --help
 fix-network() {
-  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Uso: fix-network"
-    echo ""
-    echo "Ajusta a rede em caso de instabilidade de conexão:"
-    echo "  1. Desativa IPv6 nas conexões de rede (opcional, pede confirmação)"
-    echo "     - Linux: perfis salvos do NetworkManager (nmcli)"
-    echo "     - macOS: serviços de rede (networksetup -setv6off)"
-    echo "  2. Limpa o cache de DNS (opcional, pede confirmação)"
-    echo "     - Linux: 'resolvectl flush-caches'"
-    echo "     - macOS: 'dscacheutil -flushcache' + 'killall -HUP mDNSResponder'"
-    echo "  3. Reinicia o NetworkManager (só Linux - sem equivalente confiável"
-    echo "     no macOS, passo pulado lá)"
-    echo "  4. Reinicia o Netskope/stagentd, se instalado/habilitado (só Linux"
-    echo "     - sem nome de serviço launchd confiável no macOS, passo pulado"
-    echo "     lá)"
-    return 0
-  fi
+  local skip_ipv6=false
+  local skip_dns=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "Uso: fix-network [--skip-ipv6] [--skip-dns]"
+        echo ""
+        echo "Ajusta a rede em caso de instabilidade de conexão:"
+        echo "  1. Desativa IPv6 nas conexões de rede (--skip-ipv6 pula)"
+        echo "     - Linux: perfis salvos do NetworkManager (nmcli)"
+        echo "     - macOS: serviços de rede (networksetup -setv6off)"
+        echo "  2. Limpa o cache de DNS (--skip-dns pula)"
+        echo "     - Linux: 'resolvectl flush-caches'"
+        echo "     - macOS: 'dscacheutil -flushcache' + 'killall -HUP mDNSResponder'"
+        echo "  3. Reinicia o NetworkManager (só Linux - sem equivalente confiável"
+        echo "     no macOS, passo pulado lá)"
+        echo "  4. Reinicia o Netskope/stagentd, se instalado/habilitado (só Linux"
+        echo "     - sem nome de serviço launchd confiável no macOS, passo pulado"
+        echo "     lá)"
+        return 0
+        ;;
+      --skip-ipv6) skip_ipv6=true ;;
+      --skip-dns) skip_dns=true ;;
+    esac
+    shift
+  done
 
   source "{{ROOT}}/shell/_lib/log.sh"
 
@@ -39,9 +50,9 @@ fix-network() {
 
   # 1. Desativação de IPv6
   dtb_log_step "Configuração IPv6"
-  echo -en "${_DTB_BOLD}-> Deseja desativar IPv6 nas conexões de rede? (y/N): ${_DTB_RESET}"
-  read -r confirm_ipv6
-  if [[ "$confirm_ipv6" == [yY] ]]; then
+  if [[ "$skip_ipv6" == true ]]; then
+    dtb_log_skip "Pulando configuração de IPv6 (--skip-ipv6)."
+  else
     if [[ "$os" == "macos" ]]; then
       echo "  > Desativando IPv6 nos serviços de rede (networksetup)..."
       networksetup -listallnetworkservices | tail -n +2 | while IFS= read -r service; do
@@ -54,15 +65,13 @@ fix-network() {
       done
     fi
     dtb_log_ok "IPv6 desativado nas conexões de rede."
-  else
-    dtb_log_skip "Pulando configuração de IPv6."
   fi
 
   # 2. Limpeza do cache de DNS
   dtb_log_step "Configuração de cache DNS"
-  echo -en "${_DTB_BOLD}-> Deseja limpar o cache de DNS? (y/N): ${_DTB_RESET}"
-  read -r confirm_dns
-  if [[ "$confirm_dns" == [yY] ]]; then
+  if [[ "$skip_dns" == true ]]; then
+    dtb_log_skip "Pulando limpeza de cache DNS (--skip-dns)."
+  else
     echo "  > Limpando cache de DNS..."
     if [[ "$os" == "macos" ]]; then
       sudo dscacheutil -flushcache
@@ -71,8 +80,6 @@ fix-network() {
       sudo resolvectl flush-caches
     fi
     dtb_log_ok "Cache de DNS limpo."
-  else
-    dtb_log_skip "Pulando limpeza de cache DNS."
   fi
 
   # 3. Reinício de serviços essenciais (NetworkManager - Linux only, sem
