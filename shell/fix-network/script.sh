@@ -7,29 +7,39 @@
 #
 # Uso: fix-network [--skip-ipv6] [--skip-dns]
 # Uso: fix-network -h | --help
+_dtb_help_fix_network() {
+  cat <<'EOF'
+fix-network - ajusta a rede em caso de instabilidade de conexão
+
+Uso:
+  fix-network [--skip-ipv6] [--skip-dns]
+
+Descrição:
+  1. Desativa IPv6 nas conexões de rede (--skip-ipv6 pula)
+     - Linux: perfis salvos do NetworkManager (nmcli)
+     - macOS: serviços de rede (networksetup -setv6off)
+  2. Limpa o cache de DNS (--skip-dns pula)
+     - Linux: 'resolvectl flush-caches'
+     - macOS: 'dscacheutil -flushcache' + 'killall -HUP mDNSResponder'
+  3. Reinicia o NetworkManager (só Linux - sem equivalente confiável no
+     macOS, passo pulado lá)
+  4. Reinicia o Netskope/stagentd, se instalado/habilitado (só Linux -
+     sem nome de serviço launchd confiável no macOS, passo pulado lá)
+
+Opções:
+  --skip-ipv6   pula o passo 1 (desativação de IPv6)
+  --skip-dns    pula o passo 2 (limpeza de cache DNS)
+  -h            mostra esta ajuda
+EOF
+}
+
 fix-network() {
   local skip_ipv6=false
   local skip_dns=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -h|--help)
-        echo "Uso: fix-network [--skip-ipv6] [--skip-dns]"
-        echo ""
-        echo "Ajusta a rede em caso de instabilidade de conexão:"
-        echo "  1. Desativa IPv6 nas conexões de rede (--skip-ipv6 pula)"
-        echo "     - Linux: perfis salvos do NetworkManager (nmcli)"
-        echo "     - macOS: serviços de rede (networksetup -setv6off)"
-        echo "  2. Limpa o cache de DNS (--skip-dns pula)"
-        echo "     - Linux: 'resolvectl flush-caches'"
-        echo "     - macOS: 'dscacheutil -flushcache' + 'killall -HUP mDNSResponder'"
-        echo "  3. Reinicia o NetworkManager (só Linux - sem equivalente confiável"
-        echo "     no macOS, passo pulado lá)"
-        echo "  4. Reinicia o Netskope/stagentd, se instalado/habilitado (só Linux"
-        echo "     - sem nome de serviço launchd confiável no macOS, passo pulado"
-        echo "     lá)"
-        return 0
-        ;;
+      -h|--help) _dtb_help_fix_network; return 0 ;;
       --skip-ipv6) skip_ipv6=true ;;
       --skip-dns) skip_dns=true ;;
     esac

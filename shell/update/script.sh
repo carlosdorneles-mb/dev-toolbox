@@ -5,22 +5,37 @@
 # Uso: update
 # Uso: update --only-dev-toolbox
 # Uso: update -h | --help
+_dtb_help_update() {
+  cat <<'EOF'
+update - atualiza pacotes do sistema e ferramentas de dev instaladas
+
+Uso:
+  update [--only-dev-toolbox]
+
+Descrição:
+  Atualiza o próprio dev-toolbox (git pull + re-instala se mudou),
+  pacotes do sistema (apt/brew) e ferramentas de dev instaladas (uv,
+  poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor,
+  vscode, sublime, podman, gh+extensions, docker desktop, mas), pulando
+  qualquer uma não presente na máquina. Blocos específicos de
+  apt/dpkg/systemctl só rodam no Linux; 'mas' (Mac App Store) só no
+  macOS.
+
+Opções:
+  --only-dev-toolbox   roda só o bloco de git pull + re-instala do
+                       próprio dev-toolbox, pulando pacotes do sistema e
+                       demais ferramentas
+  -h                   mostra esta ajuda
+EOF
+}
+
 update() {
-  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Uso: update [--only-dev-toolbox]"
-    echo ""
-    echo "Atualiza o proprio dev-toolbox (git pull + re-instala se mudou),"
-    echo "pacotes do sistema (apt/brew) e ferramentas de dev instaladas"
-    echo "(uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx,"
-    echo "cursor, vscode, sublime, podman, gh+extensions, docker desktop,"
-    echo "mas), pulando qualquer uma nao presente na maquina."
-    echo "Blocos especificos de apt/dpkg/systemctl so rodam no linux;"
-    echo "'mas' (Mac App Store) so no macOS."
-    echo ""
-    echo "--only-dev-toolbox roda so o bloco de git pull + re-instala do"
-    echo "proprio dev-toolbox, pulando pacotes do sistema e demais ferramentas."
-    return 0
-  fi
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help) _dtb_help_update; return 0 ;;
+    esac
+  done
 
   local only_dev_toolbox=0
   [[ "${1:-}" == "--only-dev-toolbox" ]] && only_dev_toolbox=1

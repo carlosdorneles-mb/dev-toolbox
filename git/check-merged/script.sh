@@ -10,27 +10,8 @@ no_fetch=0
 delete_mode=0
 yes_mode=0
 json_mode=0
-for arg in "$@"; do
-  case "$arg" in
-    -h|--help) show_help=1; continue ;;
-    --no-color) no_color_flag=1; continue ;;
-    --no-fetch) no_fetch=1; continue ;;
-    --delete) delete_mode=1; continue ;;
-    --yes|-y) yes_mode=1; continue ;;
-    --json) json_mode=1; continue ;;
-    *)
-      echo "erro: opcao desconhecida '$arg'" >&2
-      exit 1
-      ;;
-  esac
-done
 
-if (( json_mode )) && ! command -v jq &>/dev/null; then
-  echo "erro: --json exige 'jq' instalado" >&2
-  exit 1
-fi
-
-if [[ -n "$show_help" ]]; then
+_dtb_help_check_merged() {
   cat <<'EOF'
 git check-merged - lista branches locais ja mergeadas no remote (origin por padrao)
 
@@ -89,6 +70,31 @@ Exemplos:
   apagar 'fix/promotions-mail-push-campaign-exclusion'? [y/N] y
   Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) show_help=1 ;;
+    --no-color) no_color_flag=1 ;;
+    --no-fetch) no_fetch=1 ;;
+    --delete) delete_mode=1 ;;
+    --yes|-y) yes_mode=1 ;;
+    --json) json_mode=1 ;;
+    *)
+      echo "erro: opcao desconhecida '$1'" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if (( json_mode )) && ! command -v jq &>/dev/null; then
+  echo "erro: --json exige 'jq' instalado" >&2
+  exit 1
+fi
+
+if [[ -n "$show_help" ]]; then
+  _dtb_help_check_merged
   exit 0
 fi
 

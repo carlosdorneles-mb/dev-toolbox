@@ -10,34 +10,8 @@ text_mode=0
 json_mode=0
 no_warning=0
 target_arg=""
-for arg in "$@"; do
-  case "$arg" in
-    -h|--help) show_help=1; continue ;;
-    --no-color) NO_COLOR=1; continue ;;
-    --inline) tree_mode=0; continue ;;
-    --no-pr) no_pr=1; continue ;;
-    --text) text_mode=1; continue ;;
-    --json) json_mode=1; continue ;;
-    --no-warning) no_warning=1; continue ;;
-  esac
 
-  if [[ "$arg" == -* ]]; then
-    echo "erro: opcao desconhecida '$arg'" >&2
-    exit 1
-  fi
-  if [[ -n "$target_arg" ]]; then
-    echo "erro: passe so um branch ou numero de PR por vez ('$target_arg' e '$arg')" >&2
-    exit 1
-  fi
-  target_arg="$arg"
-done
-
-if (( json_mode )) && ! command -v jq &>/dev/null; then
-  echo "erro: --json exige 'jq' instalado" >&2
-  exit 1
-fi
-
-if [[ -n "$show_help" ]]; then
+_dtb_help_chain() {
   cat <<'EOF'
 git chain - mostra a cadeia de branches (stack de PRs) da branch atual até main
 
@@ -202,6 +176,39 @@ Exemplos:
      "pr": {"number": 768, "url": "...", "state": "OPEN", ...}, ...}
   ]
 EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) show_help=1 ;;
+    --no-color) NO_COLOR=1 ;;
+    --inline) tree_mode=0 ;;
+    --no-pr) no_pr=1 ;;
+    --text) text_mode=1 ;;
+    --json) json_mode=1 ;;
+    --no-warning) no_warning=1 ;;
+    -*)
+      echo "erro: opcao desconhecida '$1'" >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$target_arg" ]]; then
+        echo "erro: passe so um branch ou numero de PR por vez ('$target_arg' e '$1')" >&2
+        exit 1
+      fi
+      target_arg="$1"
+      ;;
+  esac
+  shift
+done
+
+if (( json_mode )) && ! command -v jq &>/dev/null; then
+  echo "erro: --json exige 'jq' instalado" >&2
+  exit 1
+fi
+
+if [[ -n "$show_help" ]]; then
+  _dtb_help_chain
   exit 0
 fi
 

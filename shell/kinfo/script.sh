@@ -5,15 +5,33 @@
 #
 # Uso: kinfo <ambiente> [nome-do-app]
 # Uso: kinfo -h | --help
+_dtb_help_kinfo() {
+  cat <<'EOF'
+kinfo - mostra detalhes de um deployment/pod no Kubernetes
+
+Uso:
+  kinfo <ambiente> [nome-do-app]
+
+Descrição:
+  Mostra namespace, env, versão e quem/quando fez o último deploy. Com
+  fzf instalado e o nome do app omitido, abre um seletor com os
+  deployments do namespace.
+
+Opções:
+  <ambiente>     namespace do Kubernetes (fallback: $K_ENV)
+  [nome-do-app]  nome do deployment (fallback: $K_APP; sem os dois, abre
+                 seletor fzf se instalado)
+  -h             mostra esta ajuda
+EOF
+}
+
 kinfo() {
-  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Uso: kinfo <ambiente> [nome-do-app]"
-    echo ""
-    echo "  <ambiente>     namespace do Kubernetes (fallback: \$K_ENV)"
-    echo "  [nome-do-app]  nome do deployment (fallback: \$K_APP; sem os"
-    echo "                 dois, abre seletor fzf se instalado)"
-    return 0
-  fi
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help) _dtb_help_kinfo; return 0 ;;
+    esac
+  done
 
   local ENV=${1:-${K_ENV}}
   local APP=${2:-${K_APP}}

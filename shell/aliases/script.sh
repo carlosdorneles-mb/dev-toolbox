@@ -84,26 +84,36 @@ _dtb_aliases_collect() {
 #
 # Uso: aliases [-r|--run] [--only-dev-toolbox]
 # Uso: aliases -h | --help
+_dtb_help_aliases() {
+  cat <<'EOF'
+aliases - lista todos os aliases de shell e git numa tabela
+
+Uso:
+  aliases [-r|--run] [--only-dev-toolbox]
+
+Descrição:
+  Lista todos os aliases de shell e git numa tabela (TIPO, NOME, FONTE,
+  COMANDO), indicando se vieram do dev-toolbox ou de outra fonte
+  (~/.bashrc, ~/.zshrc, ~/.gitconfig etc).
+
+Opções:
+  -r, --run             abre um menu fzf (NOME + COMANDO) pra escolher um
+                        alias e executá-lo na hora
+  --only-dev-toolbox    mostra só os aliases com FONTE=dev-toolbox
+                        (combina com -r/--run)
+  -h                    mostra esta ajuda
+EOF
+}
+
 aliases() {
-  local run=0 only_dtb=0 arg
-  for arg in "$@"; do
-    case "$arg" in
-      -h|--help)
-        echo "Uso: aliases [-r|--run] [--only-dev-toolbox]"
-        echo ""
-        echo "Lista todos os aliases de shell e git numa tabela (TIPO, NOME,"
-        echo "FONTE, COMANDO), indicando se vieram do dev-toolbox ou de outra"
-        echo "fonte (~/.bashrc, ~/.zshrc, ~/.gitconfig etc)."
-        echo ""
-        echo "  -r, --run             abre um menu fzf (NOME + COMANDO) pra"
-        echo "                        escolher um alias e executá-lo na hora"
-        echo "  --only-dev-toolbox    mostra só os aliases com FONTE=dev-toolbox"
-        echo "                        (combina com -r/--run)"
-        return 0
-        ;;
+  local run=0 only_dtb=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) _dtb_help_aliases; return 0 ;;
       -r|--run) run=1 ;;
       --only-dev-toolbox) only_dtb=1 ;;
     esac
+    shift
   done
 
   # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -

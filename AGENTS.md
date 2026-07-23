@@ -66,6 +66,41 @@ antes do `script.sh` concatenado - defesa contra o erro clássico do bash
 antigo etc) já tem um alias com o mesmo nome da função (`entry` no
 `catalog.json`, ex: `update`, `kinfo`).
 
+## Padrão de flags e help
+
+Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
+
+1. **Parsing de flags:** `while [[ $# -gt 0 ]]; do case "$1" in ... ; shift; done`
+   percorrendo `$@` — nunca `for arg in "$@"` nem checar só `${1:-}` na mão.
+   Scripts sem flag real (só `-h`) ainda usam um loop pra detectar `-h`/`--help`
+   em qualquer posição, mesmo com argumentos posicionais depois (ver
+   `shell/kinfo/script.sh`, `shell/update/script.sh`).
+2. **Função de help:** texto do `-h`/`--help` sempre numa função dedicada,
+   nomeada `_dtb_help_<id>` (`<id>` = nome do diretório do item, hífen vira
+   underscore — ex: `_dtb_help_fix_network`, `_dtb_help_check_merged`). A
+   função só imprime (heredoc `cat <<'EOF' ... EOF`); quem decide
+   `exit`/`return` é o caller, no case do parsing.
+3. **Texto do help, mesma estrutura sempre:**
+   ```
+   <comando> - <descrição de uma linha>
+
+   Uso:
+     <comando> [flags] [args]
+
+   Descrição:            (opcional — só se o comportamento não for óbvio pelo Uso:)
+     <parágrafo(s)>
+
+   Opções:
+     <flag>   <explicação>
+     -h       mostra esta ajuda
+
+   Exemplos:              (opcional — só quando exemplos agregam, ex: git/chain)
+     $ <comando> ...
+   ```
+   Ver `git/chain/script.sh` e `git/check-merged/script.sh` como referência
+   completa (com Exemplos:); `shell/kinfo`, `shell/update`, `shell/aliases`,
+   `shell/fix-network` como referência enxuta (sem Exemplos:).
+
 ## Dependências externas (`deps.sh`)
 
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
