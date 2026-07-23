@@ -248,12 +248,6 @@ if (( ! delete_mode )) && (( is_tty )); then
   dtb_print_random_hint "git check-local-branches" "$DIM" "$RESET"
 fi
 
-if (( ! any_merged )); then
-  echo >&2
-  echo "nenhuma branch local mergeada encontrada (raiz: $root_branch)" >&2
-  exit 0
-fi
-
 if (( delete_mode )); then
   echo
 
