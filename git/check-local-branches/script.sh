@@ -62,13 +62,13 @@ Opções:
 
 Exemplos:
   $ git check-local-branches
-  STATUS  BRANCH                                       TAGS
-  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
-  MERGED  chore/bump-deps                               [ancestor]
-  -       feat/promotions-autonomous-process             (ainda em uso)
+  STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  NOTA
+  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    upstream sumiu
+  MERGED  chore/bump-deps                              [ancestor]   2 months ago
+  -       feat/promotions-autonomous-process            -            2 days ago     branch atual
 
   $ git check-local-branches --delete
-  MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
+  MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged]
   apagar 'fix/promotions-mail-push-campaign-exclusion'? [y/N] y
   Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 EOF
@@ -200,18 +200,25 @@ if (( json_mode )); then
 fi
 
 any_merged=0
-table_rows="$(printf 'STATUS\tBRANCH\tTAGS\n')"
+table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tNOTA\n')"
 for i in "${!results_name[@]}"; do
   b="${results_name[$i]}"
+
+  last_commit="$(git log -1 --format=%cr "$b" 2>/dev/null)"
+  [[ -z "$last_commit" ]] && last_commit="desconhecido"
+
+  nota=""
+  (( results_gone[i] )) && nota="⚠ upstream sumiu"
+  [[ "$b" == "$real_current" ]] && nota="${nota:+$nota, }branch atual"
+
   if (( results_merged[i] )); then
     any_merged=1
-    tags="${results_reasons[$i]}"
-    (( results_gone[i] )) && tags="${tags:+$tags,}gone"
-    table_rows+="$(printf '\n%s\t%s\t%s' "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}[$tags]${RESET}")"
+    motivo="[${results_reasons[$i]}]"
+    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s' \
+      "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}${motivo}${RESET}" "${DIM}${last_commit}${RESET}" "${YELLOW}${nota}${RESET}")"
   else
-    note=""
-    [[ "$b" == "$real_current" ]] && note=" (branch atual)"
-    table_rows+="$(printf '\n%s\t%s\t%s' "${DIM}-${RESET}" "$b" "${DIM}${note}${RESET}")"
+    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s' \
+      "${DIM}-${RESET}" "$b" "${DIM}-${RESET}" "${DIM}${last_commit}${RESET}" "${YELLOW}${nota}${RESET}")"
   fi
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
@@ -232,9 +239,9 @@ if (( delete_mode )); then
       echo "${YELLOW}pulando '$b': e a branch atual, de checkout${RESET}" >&2
       continue
     fi
-    tags="${results_reasons[$i]}"
-    (( results_gone[i] )) && tags="${tags:+$tags,}gone"
-    candidates+=("$b"$'\t'"[$tags]")
+    tag="[${results_reasons[$i]}]"
+    (( results_gone[i] )) && tag="$tag (upstream sumiu)"
+    candidates+=("$b"$'\t'"$tag")
   done
 
   to_delete=()

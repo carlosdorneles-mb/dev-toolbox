@@ -29,8 +29,8 @@ squash-mergeada pode aparecer como "não mergeada" nesse caso (avisa 1x em
 stderr, mesmo aviso do `git chain`).
 
 Branch com upstream remoto sumido (`git branch -vv` mostra `[gone]`) é
-sinal extra, mostrado mas não usado sozinho pra decidir - só reforça o
-resultado dos 3 métodos acima.
+sinal extra, mostrado na coluna `NOTA` (não em `MOTIVO`) - não é usado
+sozinho pra decidir merge, só reforça o resultado dos 3 métodos acima.
 
 `--delete` remove (`git branch -D`) as branches identificadas como
 mergeadas. Com `fzf` instalado (e terminal interativo), abre seleção
@@ -41,7 +41,7 @@ Nunca deleta a branch raiz nem a branch com checkout no momento
 (protegida pelo próprio git contra deleção).
 
 Enquanto verifica (fetch + consulta PR por branch), mostra
-"verificando branches mergeadas..." em stderr, substituído pelo
+"verificando branches locais..." em stderr, substituído pelo
 resultado quando termina (só em terminal interativo, sem `--json`).
 
 Roda `git fetch --all --quiet --prune` antes de comparar, a menos que
@@ -63,21 +63,21 @@ estar desatualizado).
 
 ```bash
 $ git check-local-branches
-STATUS  BRANCH                                       TAGS
-MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
-MERGED  chore/bump-deps                               [ancestor]
--       feat/promotions-autonomous-process             (branch atual)
+STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  NOTA
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    upstream sumiu
+MERGED  chore/bump-deps                              [ancestor]   2 months ago
+-       feat/promotions-autonomous-process           -            2 days ago     branch atual
 
 $ git check-local-branches --delete
-STATUS  BRANCH                                       TAGS
-MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
-MERGED  chore/bump-deps                               [ancestor]
+STATUS  BRANCH                                       MOTIVO
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged] (upstream sumiu)
+MERGED  chore/bump-deps                              [ancestor]
 # abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
 $ git check-local-branches --delete --yes
-STATUS  BRANCH                                       TAGS
-MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
+STATUS  BRANCH                                       MOTIVO
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged] (upstream sumiu)
 # --yes apaga direto, sem seleção/confirmação
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
