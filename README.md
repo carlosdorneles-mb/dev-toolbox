@@ -49,6 +49,17 @@ cd ~/.dev-toolbox
 
 ## Desinstalar
 
+### Via curl (sem clone local)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/uninstall.sh | bash
+```
+
+Usa `~/.dev-toolbox` por padrão (ou `$DEV_TOOLBOX_DIR`, se setado) - mesma
+convenção do bootstrap de instalação.
+
+### Local (a partir do clone)
+
 ```bash
 ./uninstall.sh   # ou: make uninstall
 ```

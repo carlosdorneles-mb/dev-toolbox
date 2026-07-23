@@ -6,6 +6,9 @@
 # Uso:
 #   ./uninstall.sh
 #
+# Ou via curl, sem clone local (usa $DEV_TOOLBOX_DIR, padrão ~/.dev-toolbox):
+#   curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/uninstall.sh | bash
+#
 # Remove:
 # - o "include.path" do ~/.gitconfig que aponta pro git/aliases.local.gitconfig
 #   deste clone
@@ -28,7 +31,13 @@ else
   BOLD=""; DIM=""; RESET=""; GREEN=""
 fi
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Rodando via "curl | bash", BASH_SOURCE[0] não aponta pra um arquivo real -
+# nesse caso cai pro clone padrão do bootstrap.sh ($DEV_TOOLBOX_DIR).
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  ROOT="${DEV_TOOLBOX_DIR:-$HOME/.dev-toolbox}"
+fi
 GIT_CONFIG_GENERATED="$ROOT/git/aliases.local.gitconfig"
 SHELL_CONFIG_GENERATED="$ROOT/shell/aliases.local.sh"
 
