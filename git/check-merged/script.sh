@@ -32,10 +32,10 @@ fi
 
 if [[ -n "$show_help" ]]; then
   cat <<'EOF'
-git merged-check - lista branches locais ja mergeadas no remote (origin por padrao)
+git check-merged - lista branches locais ja mergeadas no remote (origin por padrao)
 
 Uso:
-  git merged-check [--delete [--yes]] [--no-fetch] [--no-color] [--json]
+  git check-merged [--delete [--yes]] [--no-fetch] [--no-color] [--json]
 
 Descrição:
   Pra cada branch local (exceto a raiz main/master), verifica se o
@@ -79,12 +79,12 @@ Opções:
   -h           mostra esta ajuda
 
 Exemplos:
-  $ git merged-check
+  $ git check-merged
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
   MERGED   chore/bump-deps                                [ancestor]
   -        feat/promotions-autonomous-process              (ainda em uso)
 
-  $ git merged-check --delete
+  $ git check-merged --delete
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
   apagar 'fix/promotions-mail-push-campaign-exclusion'? [y/N] y
   Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
