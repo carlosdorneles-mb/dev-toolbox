@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Verifica/instala dependências externas usadas pelos itens do dev-toolbox
-# (jq, fzf, gh, ...). Detecta o que já está instalado e a versão; instala o
-# que falta e atualiza o que estiver abaixo da versão mínima exigida.
-# jq e fzf são obrigatórios (instalados sem perguntar, falha aborta o
-# install.sh); gh é opcional (pede confirmação antes de instalar/atualizar).
+# (jq, fzf, gum, gh, ...). Detecta o que já está instalado e a versão;
+# instala o que falta e atualiza o que estiver abaixo da versão mínima
+# exigida. jq, fzf e gum são obrigatórios (instalados sem perguntar, falha
+# aborta o install.sh); gh é opcional (pede confirmação antes de
+# instalar/atualizar).
 #
 # Uso:
 #   ./deps.sh              # verifica e instala/atualiza o que for preciso
@@ -29,6 +30,7 @@ CHECK_ONLY=0
 DEPS=(
   "jq|1.6|jq --version"
   "fzf|0.30.0|fzf --version"
+  "gum|0.13.0|gum --version"
   "gh|2.0.0|gh --version"
 )
 
@@ -102,6 +104,18 @@ _install_or_upgrade() {
         fi
         _add_gh_apt_repo "$sudo_cmd"
       fi
+
+      if [[ "$bin" == "gum" ]] && ! apt-cache show gum &>/dev/null; then
+        if ! command -v curl &>/dev/null; then
+          echo "${RED}✘${RESET} 'curl' é necessário pra adicionar o repositório do Charm (gum) - instale-o primeiro." >&2
+          return 1
+        fi
+        if ! command -v gpg &>/dev/null; then
+          echo "${RED}✘${RESET} 'gpg' é necessário pra adicionar o repositório do Charm (gum) - instale-o primeiro." >&2
+          return 1
+        fi
+        _add_charm_apt_repo "$sudo_cmd"
+      fi
       $sudo_cmd apt-get update -qq
       $sudo_cmd apt-get install -y "$bin"
       ;;
@@ -123,6 +137,17 @@ _add_gh_apt_repo() {
   $sudo_cmd chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
     | $sudo_cmd tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+}
+
+_add_charm_apt_repo() {
+  # repo oficial do Charm (charmbracelet/gum) - necessário em Ubuntu/Debian,
+  # onde 'gum' não está nos repos padrão (ver https://github.com/charmbracelet/gum#installation)
+  local sudo_cmd="${1:-sudo}"
+  echo "${DIM}  adicionando repositório oficial do Charm (gum)...${RESET}"
+  $sudo_cmd mkdir -p /etc/apt/keyrings
+  curl -fsSL https://repo.charm.sh/apt/gpg.key | $sudo_cmd gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
+    | $sudo_cmd tee /etc/apt/sources.list.d/charm.list > /dev/null
 }
 
 _confirm_gh_install() {

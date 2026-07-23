@@ -78,12 +78,14 @@ duplicado (ex: `git chain` aparecendo mais de uma vez).
 
 ## Dependências
 
-`jq` e `fzf` são **obrigatórios** - vários itens do toolbox exigem os dois.
-`install.sh` roda `deps.sh` automaticamente antes de instalar/atualizar - ele
-detecta o que já está presente (e a versão), instala o que falta e atualiza
-o que estiver abaixo da versão mínima exigida; se a instalação de `jq`/`fzf`
-falhar, `install.sh` aborta. Suporta **macOS** (via `brew`) e
-**Ubuntu/Debian** (via `apt-get`).
+`jq`, `fzf` e [`gum`](https://github.com/charmbracelet/gum) são
+**obrigatórios** - vários itens do toolbox exigem eles. `install.sh` roda
+`deps.sh` automaticamente antes de instalar/atualizar - ele detecta o que já
+está presente (e a versão), instala o que falta e atualiza o que estiver
+abaixo da versão mínima exigida; se a instalação de `jq`/`fzf`/`gum` falhar,
+`install.sh` aborta. Suporta **macOS** (via `brew`) e **Ubuntu/Debian** (via
+`apt-get` - `gum`, assim como `gh`, usa o repositório oficial do fornecedor
+quando não está nos repos padrão do apt).
 
 `gh` é **opcional** (só usado por `git chain` pra número/status de PR) -
 `deps.sh` pede confirmação antes de instalar/atualizar, incluindo o repo
@@ -131,7 +133,7 @@ config e README dedicado lado a lado:
 dev-toolbox/
 ├── bootstrap.sh                  # entrypoint do curl - clona/atualiza + chama install.sh
 ├── install.sh                    # instala/atualiza (local ou via bootstrap), --interactive p/ seleção
-├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh) - chamado pelo install.sh
+├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gum, gh) - chamado pelo install.sh
 ├── catalog.json                 # catálogo dos itens instaláveis (array de {id,type,path,entry,description})
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO, gitignored - não editar a mão
