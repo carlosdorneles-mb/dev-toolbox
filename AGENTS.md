@@ -28,7 +28,7 @@ dev-toolbox/
 ├── bootstrap.sh                  # entrypoint via curl: clona/atualiza ~/.dev-toolbox + chama install.sh --interactive
 ├── install.sh                    # instala/atualiza (local ou via bootstrap); --interactive p/ seleção granular
 ├── uninstall.sh                  # inverso do install.sh - remove entradas deste clone do ~/.gitconfig e ~/.bashrc/~/.zshrc
-├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gh); chamado pelo install.sh
+├── deps.sh                       # verifica/instala dependências externas (jq, gum, gh); chamado pelo install.sh
 ├── catalog.json                 # catálogo dos itens instaláveis: array de {id,type,path,entry,description}
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO por install.sh, gitignored - nunca editar a mão nem commitar
@@ -51,7 +51,7 @@ dev-toolbox/
 1. Criar `git/<id>/script.sh` (implementação) e `git/<id>/README.md` (uso, flags, exemplos — mesmo nível de detalhe do `git/chain/README.md`).
 2. Criar `git/<id>/alias.gitconfig` com uma linha: `<nome> = !bash {{ROOT}}/git/<id>/script.sh`.
 3. Adicionar entrada no array de `catalog.json`: `{"id": "<id>", "type": "git", "path": "git/<id>/alias.gitconfig", "entry": "<nome>", "description": "<description em inglês>"}`.
-4. Se o script exigir binário externo novo (além de jq/fzf/gh já cobertos), adicionar uma linha no array `DEPS` de `deps.sh`.
+4. Se o script exigir binário externo novo (além de jq/gum/gh já cobertos), adicionar uma linha no array `DEPS` de `deps.sh`.
 5. Rodar `./install.sh` local pra validar antes de commitar.
 
 **shell:**
@@ -104,9 +104,9 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
 ## Dependências externas (`deps.sh`)
 
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
-toolbox (hoje: `jq`, `fzf`, `gh`) via `brew` (macOS) ou `apt-get`
+toolbox (hoje: `jq`, `gum`, `gh`) via `brew` (macOS) ou `apt-get`
 (Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do próprio script -
-não existe arquivo de configuração externo pra isso. `jq` e `fzf` são
+não existe arquivo de configuração externo pra isso. `jq` e `gum` são
 obrigatórios - instalados sem perguntar, e se a instalação falhar
 `install.sh` aborta (`set -euo pipefail`, sem fallback degradado). `gh` é
 opcional - pede confirmação antes de instalar/atualizar; se o usuário

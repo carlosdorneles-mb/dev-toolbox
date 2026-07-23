@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Verifica/instala dependências externas usadas pelos itens do dev-toolbox
-# (jq, fzf, gum, gh, ...). Detecta o que já está instalado e a versão;
+# (jq, gum, gh, ...). Detecta o que já está instalado e a versão;
 # instala o que falta e atualiza o que estiver abaixo da versão mínima
-# exigida. jq, fzf e gum são obrigatórios (instalados sem perguntar, falha
+# exigida. jq e gum são obrigatórios (instalados sem perguntar, falha
 # aborta o install.sh); gh é opcional (pede confirmação antes de
 # instalar/atualizar).
 #
@@ -29,7 +29,6 @@ CHECK_ONLY=0
 # a versão em formato X.Y.Z em algum lugar da saída)
 DEPS=(
   "jq|1.6|jq --version"
-  "fzf|0.30.0|fzf --version"
   "gum|0.13.0|gum --version"
   "gh|2.0.0|gh --version"
 )
@@ -152,7 +151,7 @@ _add_charm_apt_repo() {
 
 _confirm_gh_install() {
   # gh e opcional (só usado pelos scripts de PR) - pergunta antes de instalar,
-  # ao contrário de jq/fzf que são exigidos direto pelos scripts do toolbox
+  # ao contrário de jq/gum que são exigidos direto pelos scripts do toolbox
   local action="$1" # install | upgrade
   local verb="instalar"
   [[ "$action" == "upgrade" ]] && verb="atualizar"

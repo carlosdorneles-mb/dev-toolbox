@@ -25,7 +25,7 @@
     "type": "shell",
     "path": "shell/aliases/script.sh",
     "entry": "aliases",
-    "description": "Lists shell and git aliases in a table; -r/--run opens an fzf picker, --only-dev-toolbox filters to this repo"
+    "description": "Lists shell and git aliases in a table; -r/--run opens a gum picker, --only-dev-toolbox filters to this repo"
   },
   {
     "id": "update",
@@ -39,7 +39,7 @@
     "type": "shell",
     "path": "shell/kinfo/script.sh",
     "entry": "kinfo",
-    "description": "Shows Kubernetes deployment details for an app, with an fzf picker if the app is omitted"
+    "description": "Shows Kubernetes deployment details for an app, with a gum picker if the app is omitted"
   },
   {
     "id": "fix-network",

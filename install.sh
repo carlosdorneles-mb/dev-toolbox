@@ -48,35 +48,36 @@ if (( INTERACTIVE )) && [[ -f "$STATE_FILE" ]]; then
   done < "$STATE_FILE"
 fi
 
-# seleção via fzf (checklist navegável, TAB marca/desmarca, ENTER confirma) -
-# fzf e obrigatorio (deps.sh acima ja garante isso, abortando se faltar).
-# mesma binaria fzf funciona em mac e linux (brew/apt/pacman), sem diferenca
-# de comportamento entre os dois.
-_select_with_fzf() {
-  local -a chosen
-  local line id
+_select_with_gum() {
+  local -a display_lines chosen
+  local i max_id=0 line id
+
+  for i in "${!ids[@]}"; do
+    (( ${#ids[$i]} > max_id )) && max_id=${#ids[$i]}
+  done
+  for i in "${!ids[@]}"; do
+    display_lines+=("$(printf '%-*s  %s' "$max_id" "${ids[$i]}" "${descs[$i]}")")
+  done
 
   mapfile -t chosen < <(
-    for i in "${!ids[@]}"; do
-      printf '%s\t%s\n' "${ids[$i]}" "${descs[$i]}"
-    done | fzf --multi \
-                --delimiter='\t' \
-                --with-nth=1,2 \
-                --prompt='dev-toolbox> ' \
-                --header='TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual' \
-                --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
-                --height='~60%' \
-                --layout=reverse \
-      | cut -f1
+    printf '%s\n' "${display_lines[@]}" | gum choose --no-limit \
+      --header='espaço marca/desmarca | enter confirma | esc mantém seleção anterior'
   ) || true
 
   (( ${#chosen[@]} == 0 )) && return
 
   selected=()
-  for id in "${chosen[@]}"; do selected["$id"]=1; done
+  for line in "${chosen[@]}"; do
+    for i in "${!display_lines[@]}"; do
+      if [[ "${display_lines[$i]}" == "$line" ]]; then
+        selected["${ids[$i]}"]=1
+        break
+      fi
+    done
+  done
 }
 
-(( INTERACTIVE )) && _select_with_fzf
+(( INTERACTIVE )) && _select_with_gum
 
 : > "$STATE_FILE"
 for id in "${!selected[@]}"; do echo "$id" >> "$STATE_FILE"; done

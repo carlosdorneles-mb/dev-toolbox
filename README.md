@@ -18,23 +18,22 @@ curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/
 ```
 
 Clona o repo em `~/.dev-toolbox` (ou `$DEV_TOOLBOX_DIR`, se setado), garante
-[`fzf`](https://github.com/junegunn/fzf) instalado (obrigatório - ver
+[`gum`](https://github.com/charmbracelet/gum) instalado (obrigatório - ver
 [Dependências](#dependências)) e abre um checklist navegável pra escolher
 quais itens instalar:
 
 ```
 dev-toolbox> 
-> chain                          Shows the branch chain (PR stack) from current to main
-  aliases                        Lists shell and git aliases in a table; -r/--run opens an fzf picker, --only-dev-toolbox filters to this repo
-  update                         Updates dev-toolbox, system packages and installed dev tools (apt/brew/uv/poetry/mise/rustup/pipx/gh/docker/...); --only-dev-toolbox updates just dev-toolbox
-  kinfo                          Shows Kubernetes deployment details for an app, with an fzf picker if the app is omitted
-  fix-network                    Fixes network instability: resets IPv6/DNS, restarts NetworkManager and Netskope (Linux only)
-  5/5
-TAB: marca/desmarca | CTRL-A: marca tudo | CTRL-D: desmarca tudo | ENTER: confirma | ESC: mantem selecao atual
+□ chain                          Shows the branch chain (PR stack) from current to main
+□ aliases                        Lists shell and git aliases in a table; -r/--run opens a gum picker, --only-dev-toolbox filters to this repo
+□ update                         Updates dev-toolbox, system packages and installed dev tools (apt/brew/uv/poetry/mise/rustup/pipx/gh/docker/...); --only-dev-toolbox updates just dev-toolbox
+□ kinfo                          Shows Kubernetes deployment details for an app, with a gum picker if the app is omitted
+□ fix-network                    Fixes network instability: resets IPv6/DNS, restarts NetworkManager and Netskope (Linux only)
+espaço marca/desmarca | enter confirma | esc mantém seleção anterior
 ```
 
-Navega com as setas, `TAB` marca/desmarca, `CTRL-A`/`CTRL-D` marca/desmarca
-tudo, `ENTER` confirma, `ESC` cancela (mantém a seleção anterior).
+Navega com as setas, `espaço` marca/desmarca, `ENTER` confirma, `ESC`
+cancela (mantém a seleção anterior).
 
 Rodar o mesmo comando de novo no futuro **atualiza** (git pull) e reabre a
 seleção - serve tanto pra sincronizar quanto pra ligar/desligar itens.
@@ -78,11 +77,11 @@ duplicado (ex: `git chain` aparecendo mais de uma vez).
 
 ## Dependências
 
-`jq`, `fzf` e [`gum`](https://github.com/charmbracelet/gum) são
-**obrigatórios** - vários itens do toolbox exigem eles. `install.sh` roda
-`deps.sh` automaticamente antes de instalar/atualizar - ele detecta o que já
-está presente (e a versão), instala o que falta e atualiza o que estiver
-abaixo da versão mínima exigida; se a instalação de `jq`/`fzf`/`gum` falhar,
+`jq` e [`gum`](https://github.com/charmbracelet/gum) são **obrigatórios** -
+vários itens do toolbox exigem eles. `install.sh` roda `deps.sh`
+automaticamente antes de instalar/atualizar - ele detecta o que já está
+presente (e a versão), instala o que falta e atualiza o que estiver abaixo
+da versão mínima exigida; se a instalação de `jq`/`gum` falhar,
 `install.sh` aborta. Suporta **macOS** (via `brew`) e **Ubuntu/Debian** (via
 `apt-get` - `gum`, assim como `gh`, usa o repositório oficial do fornecedor
 quando não está nos repos padrão do apt).
@@ -116,9 +115,9 @@ Pra só checar sem instalar nada:
 | `chain`   | git   | `git chain` - mostra a cadeia de branches (stack de PRs) até main. Requer `gh` autenticado pra exibir número/status de PR (funciona sem, só com hierarquia de branches). Ver [`git/chain/README.md`](git/chain/README.md). |
 | `check-local-branches` | git | `git check-local-branches [--delete [--yes]]` - lista branches locais já mergeadas na raiz do remote (ancestor, patch-id via `cherry`, ou PR `state=MERGED` via `gh`). `--delete` apaga as encontradas - seleção via `gum` (obrigatório sem `--yes`). Ver [`git/check-local-branches/README.md`](git/check-local-branches/README.md). |
 | `check-remote-branches` | git | `git check-remote-branches [org/repo\|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]` - lista branches remotas de um repo GitHub via API `gh` (sem clone/fetch), com status de merge/PR, autoria e idade. `--delete` apaga as candidatas - seleção via `gum` (obrigatório sem `--yes`). Ver [`git/check-remote-branches/README.md`](git/check-remote-branches/README.md). |
-| `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. `-r`/`--run` abre um menu `fzf` pra escolher e executar um na hora; `--only-dev-toolbox` filtra só os deste repo. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
+| `aliases` | shell | `aliases` - lista todos os aliases (shell + git) numa tabela, mostrando de onde cada um vem. `-r`/`--run` abre um menu `gum` pra escolher e executar um na hora; `--only-dev-toolbox` filtra só os deste repo. Ver [`shell/aliases/README.md`](shell/aliases/README.md). |
 | `update`  | shell | `update` - atualiza o próprio dev-toolbox (git pull + reinstala), pacotes do sistema e ferramentas de dev instaladas (apt, brew, uv, poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor, vscode, sublime, podman, gh + extensões, docker desktop, mas), com detecção de SO (Ubuntu/Debian x macOS via `uname`) pra rodar só o que faz sentido em cada um, roda `apt autoremove`/`autoclean` no fim (Linux), pulando qualquer uma ausente; `--only-dev-toolbox` roda só o bloco de git pull + reinstala do próprio dev-toolbox. Ver [`shell/update/README.md`](shell/update/README.md). |
-| `kinfo`   | shell | `kinfo <ambiente> [app]` - mostra detalhes de um deployment no Kubernetes (namespace, env, versão, quem/quando fez o último deploy). Com `fzf` instalado e o app omitido, abre um seletor com os deployments do namespace. Requer `kubectl` configurado. Ver [`shell/kinfo/README.md`](shell/kinfo/README.md). |
+| `kinfo`   | shell | `kinfo <ambiente> [app]` - mostra detalhes de um deployment no Kubernetes (namespace, env, versão, quem/quando fez o último deploy). Com `gum` instalado e o app omitido, abre um seletor com os deployments do namespace. Requer `kubectl` configurado. Ver [`shell/kinfo/README.md`](shell/kinfo/README.md). |
 | `fix-network` | shell | `fix-network` - ajusta a rede em caso de instabilidade (desativa IPv6, limpa cache de DNS, reinicia NetworkManager+Netskope no Linux; `--skip-ipv6`/`--skip-dns` pulam cada passo), cross-platform Ubuntu+macOS via `uname` - restart de rede/Netskope só roda no Linux. Ver [`shell/fix-network/README.md`](shell/fix-network/README.md). |
 
 `catalog.json` é a fonte da verdade que o install lê (descrições em
@@ -133,7 +132,7 @@ config e README dedicado lado a lado:
 dev-toolbox/
 ├── bootstrap.sh                  # entrypoint do curl - clona/atualiza + chama install.sh
 ├── install.sh                    # instala/atualiza (local ou via bootstrap), --interactive p/ seleção
-├── deps.sh                       # verifica/instala dependências externas (jq, fzf, gum, gh) - chamado pelo install.sh
+├── deps.sh                       # verifica/instala dependências externas (jq, gum, gh) - chamado pelo install.sh
 ├── catalog.json                 # catálogo dos itens instaláveis (array de {id,type,path,entry,description})
 ├── git/
 │   ├── aliases.local.gitconfig   # GERADO, gitignored - não editar a mão
