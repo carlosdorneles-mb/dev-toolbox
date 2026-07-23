@@ -69,13 +69,13 @@ seleção/confirmação e apaga todas de uma vez. Branch default e branches
 ```bash
 $ git check-remote-branches org/repo
 STATUS               BRANCH             CRIADA POR  ATUALIZADA POR  IDADE            FLAGS
-MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atras
-- [PR aberta #130]   feat/wip-thing     carlos      carlos          2 dias atras
-- [sem PR]           chore/abandoned    pedro       pedro           210 dias atras   ⚠ stale
+MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atrás
+- [PR aberta #130]   feat/wip-thing     carlos      carlos          2 dias atrás
+- [sem PR]           chore/abandoned    pedro       pedro           210 dias atrás   ⚠ stale
 
 $ git check-remote-branches org/repo --only-merged --delete
 STATUS            BRANCH          CRIADA POR  ATUALIZADA POR  IDADE
-MERGED [PR #120]  fix/old-bugfix  joana       carlos          45 dias atras
+MERGED [PR #120]  fix/old-bugfix  joana       carlos          45 dias atrás
 # abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
 Deleted branch fix/old-bugfix (remote: org/repo).
 ```

@@ -32,6 +32,11 @@ Branch com upstream remoto sumido (`git branch -vv` mostra `[gone]`) é
 sinal extra, mostrado na coluna `NOTA` (não em `MOTIVO`) - não é usado
 sozinho pra decidir merge, só reforça o resultado dos 3 métodos acima.
 
+`DEFASAGEM` mostra quantos commits a branch está atrás da raiz
+(`git rev-list --count <branch>..<raiz>`) - "em dia" quando 0, útil pra
+saber se uma branch não-mergeada só está velha ou já ficou pra trás de
+verdade.
+
 `--delete` remove (`git branch -D`) as branches identificadas como
 mergeadas. Com `fzf` instalado (e terminal interativo), abre seleção
 múltipla - digite p/ filtrar a lista, TAB marca as branches que quer
@@ -63,10 +68,10 @@ estar desatualizado).
 
 ```bash
 $ git check-local-branches
-STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  NOTA
-MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    upstream sumiu
-MERGED  chore/bump-deps                              [ancestor]   2 months ago
--       feat/promotions-autonomous-process           -            2 days ago     branch atual
+STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  DEFASAGEM         NOTA
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    em dia            upstream sumiu
+MERGED  chore/bump-deps                              [ancestor]   2 months ago   em dia
+-       feat/promotions-autonomous-process           -            2 days ago     12 commits atrás  branch atual
 
 $ git check-local-branches --delete
 STATUS  BRANCH                                       MOTIVO

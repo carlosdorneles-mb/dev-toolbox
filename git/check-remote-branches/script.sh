@@ -176,6 +176,7 @@ fi
 
 branches_raw=$(gh api "repos/$repo/branches" --paginate 2>/dev/null)
 if [[ -z "$branches_raw" ]]; then
+  (( checking_msg )) && printf -- "\r\033[2K" >&2
   echo "erro: não foi possível listar as branches de '$repo'" >&2
   exit 1
 fi
@@ -192,20 +193,6 @@ done < <(jq -r --arg default "$default_branch" \
 
 declare -A pr_number pr_url pr_state
 
-fetch_pr_info() {
-  local b="$1"
-  local json
-  json=$(gh pr list --repo "$repo" --head "$b" --state all \
-    --json number,url,state,author --limit 10 \
-    --jq 'if any(.[]; .state=="OPEN") then ([.[] | select(.state=="OPEN")])[0]
-          elif any(.[]; .state=="MERGED") then ([.[] | select(.state=="MERGED")])[0]
-          else empty end' 2>/dev/null)
-
-  pr_number["$b"]=$(jq -r '.number // empty' <<< "$json" 2>/dev/null)
-  pr_url["$b"]=$(jq -r '.url // empty' <<< "$json" 2>/dev/null)
-  pr_state["$b"]=$(jq -r '.state // empty' <<< "$json" 2>/dev/null)
-}
-
 _branch_merged() {
   [[ "${pr_state[$1]}" == "MERGED" ]]
 }
@@ -221,7 +208,7 @@ _branch_matches_filters() {
   return 0
 }
 
-declare -A created_by created_at updated_by updated_at age_days is_stale
+declare -A created_by created_at updated_by updated_at age_days is_stale commit_epoch
 
 _iso_to_epoch() {
   local iso="$1"
@@ -233,21 +220,56 @@ _iso_to_epoch() {
   echo "$epoch"
 }
 
-fetch_compare_info() {
-  local b="$1"
-  local json
-  json=$(gh api "repos/$repo/compare/$default_branch...$b" \
+# busca PR + compare de uma branch e grava num arquivo (roda em paralelo,
+# sem escrever direto nos arrays associativos - subshell nao compartilha
+# memoria com o processo pai)
+_fetch_branch_data() {
+  local b="$1" out="$2"
+  local pr_json compare_json pr_arg="null" compare_arg="null"
+
+  pr_json=$(gh pr list --repo "$repo" --head "$b" --state all \
+    --json number,url,state,author --limit 10 \
+    --jq 'if any(.[]; .state=="OPEN") then ([.[] | select(.state=="OPEN")])[0]
+          elif any(.[]; .state=="MERGED") then ([.[] | select(.state=="MERGED")])[0]
+          else empty end' 2>/dev/null)
+  [[ -n "$pr_json" ]] && pr_arg="$pr_json"
+
+  compare_json=$(gh api "repos/$repo/compare/$default_branch...$b" \
     --jq '{first: (.commits[0] // empty), last: (.commits[-1] // empty)}' 2>/dev/null)
+  [[ -n "$compare_json" ]] && compare_arg="$compare_json"
 
-  created_by["$b"]=$(jq -r '.first.commit.author.name // empty' <<< "$json" 2>/dev/null)
-  created_at["$b"]=$(jq -r '.first.commit.author.date // empty' <<< "$json" 2>/dev/null)
-  updated_by["$b"]=$(jq -r '.last.commit.author.name // empty' <<< "$json" 2>/dev/null)
-  updated_at["$b"]=$(jq -r '.last.commit.author.date // empty' <<< "$json" 2>/dev/null)
+  jq -n --argjson pr "$pr_arg" --argjson compare "$compare_arg" \
+    '{pr: $pr, compare: $compare}' > "$out" 2>/dev/null
+}
 
-  local epoch now
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+max_parallel=8
+running=0
+for i in "${!branch_names[@]}"; do
+  _fetch_branch_data "${branch_names[$i]}" "$tmp_dir/$i.json" &
+  (( ++running >= max_parallel )) && { wait -n; (( running-- )); }
+done
+wait
+
+now=$(date +%s)
+for i in "${!branch_names[@]}"; do
+  b="${branch_names[$i]}"
+  data="$(cat "$tmp_dir/$i.json" 2>/dev/null)"
+
+  pr_number["$b"]=$(jq -r '.pr.number // empty' <<< "$data" 2>/dev/null)
+  pr_url["$b"]=$(jq -r '.pr.url // empty' <<< "$data" 2>/dev/null)
+  pr_state["$b"]=$(jq -r '.pr.state // empty' <<< "$data" 2>/dev/null)
+
+  created_by["$b"]=$(jq -r '.compare.first.commit.author.name // empty' <<< "$data" 2>/dev/null)
+  created_at["$b"]=$(jq -r '.compare.first.commit.author.date // empty' <<< "$data" 2>/dev/null)
+  updated_by["$b"]=$(jq -r '.compare.last.commit.author.name // empty' <<< "$data" 2>/dev/null)
+  updated_at["$b"]=$(jq -r '.compare.last.commit.author.date // empty' <<< "$data" 2>/dev/null)
+
   epoch=$(_iso_to_epoch "${updated_at[$b]}")
+  commit_epoch["$b"]="$epoch"
   if [[ -n "$epoch" ]]; then
-    now=$(date +%s)
     age_days["$b"]=$(( (now - epoch) / 86400 ))
   else
     age_days["$b"]=""
@@ -257,12 +279,17 @@ fetch_compare_info() {
   if [[ -n "${age_days[$b]}" ]] && (( age_days[$b] > stale_days )); then
     is_stale["$b"]=1
   fi
-}
-
-for b in "${branch_names[@]}"; do
-  fetch_pr_info "$b"
-  fetch_compare_info "$b"
 done
+
+rm -rf "$tmp_dir"
+trap - EXIT
+
+# ordena por commit mais antigo primeiro (idade desconhecida vai pro fim)
+mapfile -t branch_names < <(
+  for b in "${branch_names[@]}"; do
+    printf '%s\t%s\n' "${commit_epoch[$b]:-9999999999}" "$b"
+  done | sort -t $'\t' -k1,1n | cut -f2-
+)
 
 (( checking_msg )) && printf -- "\r\033[2K" >&2
 
@@ -322,13 +349,20 @@ for b in "${branch_names[@]}"; do
   branch_cell="$(_dtb_link "https://github.com/$repo/tree/$b" "$b")"
 
   table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
-    "$status" "$branch_cell" "${created_by[$b]:-?}" "${updated_by[$b]:-?}" "$age_label" "$flags")"
+    "$status" "$branch_cell" "${DIM}${created_by[$b]:-?}${RESET}" "${DIM}${updated_by[$b]:-?}${RESET}" "${DIM}${age_label}${RESET}" "$flags")"
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! any_shown )); then
   echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2
   exit 0
+fi
+
+if (( ! delete_mode )) && (( is_tty )); then
+  echo >&2
+  printf -- "${DIM}dica: git check-remote-branches %-14s apaga as candidatas (--yes pula confirmação)${RESET}\n" "--delete" >&2
+  printf -- "${DIM}dica: git check-remote-branches %-14s mostra só as branches stale${RESET}\n" "--only-stale" >&2
+  printf -- "${DIM}dica: git check-remote-branches %-14s saída em JSON pra script/pipe${RESET}\n" "--json" >&2
 fi
 
 if (( delete_mode )); then

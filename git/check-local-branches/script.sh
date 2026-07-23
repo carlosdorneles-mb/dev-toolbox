@@ -62,10 +62,10 @@ Opções:
 
 Exemplos:
   $ git check-local-branches
-  STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  NOTA
-  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    upstream sumiu
-  MERGED  chore/bump-deps                              [ancestor]   2 months ago
-  -       feat/promotions-autonomous-process            -            2 days ago     branch atual
+  STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  DEFASAGEM        NOTA
+  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    em dia           upstream sumiu
+  MERGED  chore/bump-deps                              [ancestor]   2 months ago   em dia
+  -       feat/promotions-autonomous-process            -            2 days ago     12 commits atrás  branch atual
 
   $ git check-local-branches --delete
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged]
@@ -147,7 +147,7 @@ results_merged=()
 results_reasons=()
 results_gone=()
 
-mapfile -t local_branches < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+mapfile -t local_branches < <(git for-each-ref --sort=committerdate --format='%(refname:short)' refs/heads/)
 
 for b in "${local_branches[@]}"; do
   [[ "$b" == "$root_branch" ]] && continue
@@ -165,8 +165,10 @@ for b in "${local_branches[@]}"; do
     fi
   fi
 
-  fetch_pr_info "$b"
-  [[ "${pr_state[$b]}" == "MERGED" ]] && reasons+=("PR merged")
+  if (( ! no_fetch )); then
+    fetch_pr_info "$b"
+    [[ "${pr_state[$b]}" == "MERGED" ]] && reasons+=("PR merged")
+  fi
 
   gone=0
   upstream_status=$(git for-each-ref --format='%(upstream:track)' "refs/heads/$b" 2>/dev/null)
@@ -200,12 +202,21 @@ if (( json_mode )); then
 fi
 
 any_merged=0
-table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tNOTA\n')"
+table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tDEFASAGEM\tNOTA\n')"
 for i in "${!results_name[@]}"; do
   b="${results_name[$i]}"
 
   last_commit="$(git log -1 --format=%cr "$b" 2>/dev/null)"
   [[ -z "$last_commit" ]] && last_commit="desconhecido"
+
+  behind="$(git rev-list --count "$b..$root_ref" 2>/dev/null)"
+  if [[ -z "$behind" ]]; then
+    defasagem="?"
+  elif (( behind == 0 )); then
+    defasagem="em dia"
+  else
+    defasagem="$behind commit$([[ "$behind" != 1 ]] && echo s) atrás"
+  fi
 
   nota=""
   (( results_gone[i] )) && nota="⚠ upstream sumiu"
@@ -214,18 +225,25 @@ for i in "${!results_name[@]}"; do
   if (( results_merged[i] )); then
     any_merged=1
     motivo="[${results_reasons[$i]}]"
-    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s' \
-      "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}${motivo}${RESET}" "${DIM}${last_commit}${RESET}" "${YELLOW}${nota}${RESET}")"
+    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
+      "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}${motivo}${RESET}" "${DIM}${last_commit}${RESET}" "${DIM}${defasagem}${RESET}" "${YELLOW}${nota}${RESET}")"
   else
-    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s' \
-      "${DIM}-${RESET}" "$b" "${DIM}-${RESET}" "${DIM}${last_commit}${RESET}" "${YELLOW}${nota}${RESET}")"
+    table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
+      "${DIM}-${RESET}" "$b" "${DIM}-${RESET}" "${DIM}${last_commit}${RESET}" "${DIM}${defasagem}${RESET}" "${YELLOW}${nota}${RESET}")"
   fi
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! any_merged )); then
+  echo >&2
   echo "nenhuma branch local mergeada encontrada (raiz: $root_branch)" >&2
   exit 0
+fi
+
+if (( ! delete_mode )) && (( is_tty )); then
+  echo >&2
+  printf -- "${DIM}dica: git check-local-branches %-10s apaga as mergeadas (--yes pula confirmação)${RESET}\n" "--delete" >&2
+  printf -- "${DIM}dica: git check-local-branches %-10s saída em JSON pra script/pipe${RESET}\n" "--json" >&2
 fi
 
 if (( delete_mode )); then
