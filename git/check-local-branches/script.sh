@@ -45,11 +45,12 @@ Descrição:
   resultado dos 3 métodos acima.
 
   --delete remove (git branch -D) as branches identificadas como
-  mergeadas. Com "fzf" instalado (e terminal interativo), abre seleção
-  múltipla (TAB marca, ENTER confirma) pra escolher quais apagar. Sem
-  "fzf", cai pra confirmação y/N por branch. --yes pula qualquer seleção
-  e apaga todas de uma vez. Nunca deleta a branch raiz nem a branch com
-  checkout no momento (protegida pelo próprio git).
+  mergeadas. Sem --yes, a seleção usa "gum choose --no-limit" (espaço
+  marca, enter confirma) seguido de "gum confirm" - exige terminal
+  interativo e "gum" instalado, sem fallback. --yes pula seleção e
+  confirmação, apaga todas de uma vez (não precisa de "gum"). Nunca
+  deleta a branch raiz nem a branch com checkout no momento (protegida
+  pelo próprio git).
 
 Opções:
   --delete     apaga (com confirmação) as branches mergeadas encontradas
@@ -70,7 +71,7 @@ Exemplos:
 
   $ git check-local-branches --delete
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged]
-  apagar 'fix/promotions-mail-push-campaign-exclusion'? [y/N] y
+  # abre gum choose - espaço marca, ENTER confirma, depois gum confirm
   Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 EOF
 }
@@ -109,17 +110,19 @@ fi
 is_tty=0
 [[ -t 1 ]] && is_tty=1
 
+# gum só é usado no spinner de carregamento (terminal + fora de --json) e no
+# picker do --delete interativo - nesses dois casos, sem gum, não tem
+# fallback. --json/pipe e --delete --yes nunca chegam a precisar dele.
+if (( is_tty )) && (( ! json_mode )) && ! command -v gum &>/dev/null; then
+  echo "erro: 'gum' não encontrado - instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
+  exit 1
+fi
+
 if (( is_tty )) && (( ! no_color_flag )) && [[ -z "$NO_COLOR" ]]; then
   BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
   GREEN=$'\e[32m'; YELLOW=$'\e[33m'
 else
   BOLD=""; DIM=""; RESET=""; GREEN=""; YELLOW=""
-fi
-
-checking_msg=0
-if (( is_tty )) && (( ! json_mode )); then
-  printf -- "${DIM}verificando branches locais...${RESET}" >&2
-  checking_msg=1
 fi
 
 if (( ! no_fetch )); then
@@ -131,29 +134,46 @@ resolve_root_branch
 root_ref="$(_ref_for "$root_branch")"
 
 if [[ -z "$root_ref" ]]; then
-  (( checking_msg )) && printf -- "\r\033[2K" >&2
-  echo "erro: nao foi possivel resolver a branch raiz ('$root_branch')" >&2
+  if (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l error "não foi possível resolver a branch raiz ('$root_branch')"
+  else
+    echo "erro: nao foi possivel resolver a branch raiz ('$root_branch')" >&2
+  fi
   exit 1
 fi
 
 if (( ! no_fetch )) && ! pr_provider_available; then
-  (( checking_msg )) && printf -- "\r\033[2K" >&2 && checking_msg=0
   pr_provider_deps_hint
 fi
 
 real_current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
-results_name=()
-results_merged=()
-results_reasons=()
-results_gone=()
-
 mapfile -t local_branches < <(git for-each-ref --sort=committerdate --format='%(refname:short)' refs/heads/)
 
+results_name=()
 for b in "${local_branches[@]}"; do
   [[ "$b" == "$root_branch" ]] && continue
+  results_name+=("$b")
+done
 
-  reasons=()
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+# roda em processo separado (gum spin exige um comando pra "vigiar") - por
+# isso escreve o resultado de cada branch em arquivo em "$tmp_dir", igual
+# check-remote-branches faz com o fetch de PR/compare.
+cat > "$tmp_dir/_check.sh" <<'CHILD_SCRIPT'
+#!/bin/bash
+_chain_lib_dir="$1"; root_ref="$2"; no_fetch="$3"; out_dir="$4"
+shift 4
+branches=("$@")
+
+source "$_chain_lib_dir/provider.sh"
+source "$_chain_lib_dir/git.sh"
+
+_dtb_check_one() {
+  local b="$1" out="$2"
+  local reasons=() cherry_out gone=0 upstream_status merged=0 reasons_str
 
   if git merge-base --is-ancestor "$b" "$root_ref" 2>/dev/null; then
     reasons+=("ancestor")
@@ -171,18 +191,43 @@ for b in "${local_branches[@]}"; do
     [[ "${pr_state[$b]}" == "MERGED" ]] && reasons+=("PR merged")
   fi
 
-  gone=0
   upstream_status=$(git for-each-ref --format='%(upstream:track)' "refs/heads/$b" 2>/dev/null)
   [[ "$upstream_status" == *"gone"* ]] && gone=1
 
-  merged=0
   (( ${#reasons[@]} > 0 )) && merged=1
+  reasons_str="$(IFS=,; echo "${reasons[*]}")"
 
-  results_name+=("$b")
+  printf '%s\t%s\t%s\n' "$merged" "$reasons_str" "$gone" > "$out"
+}
+
+max_parallel=8
+running=0
+for i in "${!branches[@]}"; do
+  _dtb_check_one "${branches[$i]}" "$out_dir/$i.tsv" &
+  (( ++running >= max_parallel )) && { wait -n; (( running-- )); }
+done
+wait
+CHILD_SCRIPT
+
+if (( is_tty )) && (( ! json_mode )); then
+  gum spin --spinner dot --title "verificando branches locais..." -- \
+    bash "$tmp_dir/_check.sh" "$_chain_lib_dir" "$root_ref" "$no_fetch" "$tmp_dir" "${results_name[@]}"
+else
+  bash "$tmp_dir/_check.sh" "$_chain_lib_dir" "$root_ref" "$no_fetch" "$tmp_dir" "${results_name[@]}"
+fi
+
+results_merged=()
+results_reasons=()
+results_gone=()
+for i in "${!results_name[@]}"; do
+  IFS=$'\t' read -r merged reasons gone < "$tmp_dir/$i.tsv"
   results_merged+=("$merged")
-  results_reasons+=("$(IFS=,; echo "${reasons[*]}")")
+  results_reasons+=("$reasons")
   results_gone+=("$gone")
 done
+
+rm -rf "$tmp_dir"
+trap - EXIT
 
 (( checking_msg )) && printf -- "\r\033[2K" >&2
 
@@ -256,7 +301,11 @@ if (( delete_mode )); then
     (( ! results_merged[i] )) && continue
     b="${results_name[$i]}"
     if [[ "$b" == "$real_current" ]]; then
-      echo "${YELLOW}pulando '$b': e a branch atual, de checkout${RESET}" >&2
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l warn "pulando '$b': é a branch atual, de checkout"
+      else
+        echo "${YELLOW}pulando '$b': e a branch atual, de checkout${RESET}" >&2
+      fi
       continue
     fi
     tag="[${results_reasons[$i]}]"
@@ -266,22 +315,30 @@ if (( delete_mode )); then
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
-    echo "nenhuma branch mergeada pra apagar" >&2
+    if (( is_tty )) && command -v gum &>/dev/null; then
+      gum log -l info "nenhuma branch mergeada pra apagar"
+    else
+      echo "nenhuma branch mergeada pra apagar" >&2
+    fi
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
-  elif (( is_tty )) && command -v fzf &>/dev/null; then
-    mapfile -t selected < <(printf '%s\n' "${candidates[@]}" | fzf -m \
-      --delimiter=$'\t' --with-nth=1,2 \
-      --header=$'branches mergeadas - digite p/ filtrar\nTAB marca p/ apagar, ENTER confirma' \
-      --prompt='filtrar> ' \
-      --marker='✓ ' --pointer='▸')
-    for s in "${selected[@]}"; do to_delete+=("${s%%$'\t'*}"); done
+  elif (( ! is_tty )); then
+    echo "erro: --delete sem --yes precisa de terminal interativo pra selecionar as branches (via gum)" >&2
+    exit 1
   else
+    items=()
     for c in "${candidates[@]}"; do
       b="${c%%$'\t'*}"
-      read -r -p "apagar '$b'? [y/N] " confirm
-      [[ "$confirm" == "y" || "$confirm" == "Y" ]] && to_delete+=("$b")
+      tag="${c#*$'\t'}"
+      items+=("$b $tag")
     done
+    mapfile -t selected < <(printf '%s\n' "${items[@]}" | gum choose --no-limit \
+      --header="branches mergeadas - espaço marca, enter confirma")
+    for s in "${selected[@]}"; do to_delete+=("${s%% *}"); done
+
+    if (( ${#to_delete[@]} > 0 )) && ! gum confirm "apagar ${#to_delete[@]} branch(es) local(is)?"; then
+      to_delete=()
+    fi
   fi
 
   for b in "${to_delete[@]}"; do

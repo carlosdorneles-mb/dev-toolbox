@@ -38,16 +38,17 @@ saber se uma branch não-mergeada só está velha ou já ficou pra trás de
 verdade.
 
 `--delete` remove (`git branch -D`) as branches identificadas como
-mergeadas. Com `fzf` instalado (e terminal interativo), abre seleção
-múltipla - digite p/ filtrar a lista, TAB marca as branches que quer
-apagar, ENTER confirma. Sem `fzf`, cai pra confirmação y/N por branch.
-`--yes`/`-y` pula qualquer seleção/confirmação e apaga todas de uma vez.
-Nunca deleta a branch raiz nem a branch com checkout no momento
-(protegida pelo próprio git contra deleção).
+mergeadas. Sem `--yes`, a seleção usa `gum choose --no-limit` (espaço
+marca, enter confirma) seguido de `gum confirm` pra confirmar a
+deleção - exige terminal interativo e `gum` instalado, sem fallback
+(erro com instrução de instalação se faltar qualquer um dos dois).
+`--yes`/`-y` pula seleção/confirmação e apaga todas de uma vez, sem
+precisar de `gum`. Nunca deleta a branch raiz nem a branch com checkout
+no momento (protegida pelo próprio git contra deleção).
 
-Enquanto verifica (fetch + consulta PR por branch), mostra
-"verificando branches locais..." em stderr, substituído pelo
-resultado quando termina (só em terminal interativo, sem `--json`).
+Enquanto verifica (fetch + consulta PR por branch), mostra um spinner
+via `gum spin` com o texto "verificando branches locais..." (só em
+terminal interativo, sem `--json`).
 
 Roda `git fetch --all --quiet --prune` antes de comparar, a menos que
 `--no-fetch` seja passado (usa o que já está local - mais rápido, pode
@@ -57,7 +58,7 @@ estar desatualizado).
 
 | Flag | Efeito |
 |---|---|
-| `--delete` | apaga as branches mergeadas encontradas (seleção via `fzf` se disponível, senão y/N por branch) |
+| `--delete` | apaga as branches mergeadas encontradas (seleção via `gum` - obrigatório sem `--yes`) |
 | `--yes`, `-y` | junto com `--delete`, apaga todas sem seleção/confirmação |
 | `--no-fetch` | pula o `git fetch` antes de comparar |
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
@@ -77,7 +78,7 @@ $ git check-local-branches --delete
 STATUS  BRANCH                                       MOTIVO
 MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged] (upstream sumiu)
 MERGED  chore/bump-deps                              [ancestor]
-# abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
+# abre gum choose - espaço marca, ENTER confirma, depois gum confirm
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
 $ git check-local-branches --delete --yes
@@ -101,5 +102,8 @@ Reaproveita `git/chain/lib/` (`provider.sh`, `git.sh`) pra resolver a
 branch raiz e consultar PR via `gh`+`jq` - mesma dependência opcional do
 `git chain` (funciona sem, só perde o método 3).
 
-`fzf` é opcional - usado só na seleção do `--delete` interativo (funciona
-sem, com fallback pra y/N por branch).
+`gum` é obrigatório em terminal interativo fora de `--json` - usado no
+spinner de carregamento (`gum spin`) e, sem `--yes`, na
+seleção/confirmação do `--delete` (`gum choose` + `gum confirm`), sem
+fallback pra nenhum dos dois. `--json`/pipe e `--delete --yes` nunca
+chegam a precisar dele.

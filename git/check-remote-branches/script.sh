@@ -268,7 +268,11 @@ else
 fi
 
 if (( fetch_status != 0 )); then
-  echo "erro: não foi possível listar as branches de '$repo'" >&2
+  if (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l error "não foi possível listar as branches de '$repo'"
+  else
+    echo "erro: não foi possível listar as branches de '$repo'" >&2
+  fi
   exit 1
 fi
 
@@ -394,7 +398,11 @@ if (( ! delete_mode )) && (( is_tty )); then
 fi
 
 if (( ! any_shown )); then
-  echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2
+  if (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l info "nenhuma branch encontrada com os filtros atuais (repo: $repo)"
+  else
+    echo "nenhuma branch encontrada com os filtros atuais (repo: $repo)" >&2
+  fi
   exit 0
 fi
 
@@ -419,7 +427,11 @@ if (( delete_mode )); then
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
-    echo "nenhuma branch mergeada ou stale pra apagar" >&2
+    if (( is_tty )) && command -v gum &>/dev/null; then
+      gum log -l info "nenhuma branch mergeada ou stale pra apagar"
+    else
+      echo "nenhuma branch mergeada ou stale pra apagar" >&2
+    fi
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
   elif (( ! is_tty )); then
@@ -445,7 +457,11 @@ if (( delete_mode )); then
     if gh api -X DELETE "repos/$repo/git/refs/heads/$b" &>/dev/null; then
       echo "Deleted branch $b (remote: $repo)."
     else
-      echo "erro: falha ao apagar '$b' no remote '$repo'" >&2
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l error "falha ao apagar '$b' no remote '$repo'"
+      else
+        echo "erro: falha ao apagar '$b' no remote '$repo'" >&2
+      fi
     fi
   done
 fi
