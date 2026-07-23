@@ -359,10 +359,19 @@ if (( ! any_shown )); then
 fi
 
 if (( ! delete_mode )) && (( is_tty )); then
+  dica_flags=("--delete" "--only-stale" "--only-merged" "--json" "--stale-days N")
+  dica_descs=(
+    "apaga as candidatas (--yes pula confirmação)"
+    "mostra só as branches stale"
+    "mostra só as branches já mergeadas"
+    "saída em JSON pra script/pipe"
+    "muda o limite de dias pra marcar stale (default: 90)"
+  )
+  dica_width=0
+  for f in "${dica_flags[@]}"; do (( ${#f} > dica_width )) && dica_width=${#f}; done
+  i=$(( RANDOM % ${#dica_flags[@]} ))
   echo >&2
-  printf -- "${DIM}dica: git check-remote-branches %-14s apaga as candidatas (--yes pula confirmação)${RESET}\n" "--delete" >&2
-  printf -- "${DIM}dica: git check-remote-branches %-14s mostra só as branches stale${RESET}\n" "--only-stale" >&2
-  printf -- "${DIM}dica: git check-remote-branches %-14s saída em JSON pra script/pipe${RESET}\n" "--json" >&2
+  printf -- "${DIM}dica: git check-remote-branches %-${dica_width}s %s${RESET}\n" "${dica_flags[$i]}" "${dica_descs[$i]}" >&2
 fi
 
 if (( delete_mode )); then

@@ -234,16 +234,28 @@ for i in "${!results_name[@]}"; do
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
+if (( ! delete_mode )) && (( is_tty )); then
+  dica_flags=("--json" "--no-fetch" "--no-color")
+  dica_descs=(
+    "saída em JSON pra script/pipe"
+    "pula o git fetch antes de comparar"
+    "desabilita cores (mesmo efeito de NO_COLOR=1)"
+  )
+  if (( any_merged )); then
+    dica_flags+=("--delete")
+    dica_descs+=("apaga as mergeadas (--yes pula confirmação)")
+  fi
+  dica_width=0
+  for f in "${dica_flags[@]}"; do (( ${#f} > dica_width )) && dica_width=${#f}; done
+  i=$(( RANDOM % ${#dica_flags[@]} ))
+  echo >&2
+  printf -- "${DIM}dica: git check-local-branches %-${dica_width}s %s${RESET}\n" "${dica_flags[$i]}" "${dica_descs[$i]}" >&2
+fi
+
 if (( ! any_merged )); then
   echo >&2
   echo "nenhuma branch local mergeada encontrada (raiz: $root_branch)" >&2
   exit 0
-fi
-
-if (( ! delete_mode )) && (( is_tty )); then
-  echo >&2
-  printf -- "${DIM}dica: git check-local-branches %-10s apaga as mergeadas (--yes pula confirmação)${RESET}\n" "--delete" >&2
-  printf -- "${DIM}dica: git check-local-branches %-10s saída em JSON pra script/pipe${RESET}\n" "--json" >&2
 fi
 
 if (( delete_mode )); then
