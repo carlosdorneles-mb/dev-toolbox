@@ -93,6 +93,11 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+if ! command -v gum &>/dev/null; then
+  echo "erro: 'gum' não encontrado - instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
+  exit 1
+fi
+
 if ! gh auth status &>/dev/null; then
   echo "erro: 'gh' sem login - rode 'gh auth login'" >&2
   exit 1
@@ -169,29 +174,6 @@ _dtb_link() {
   fi
 }
 
-checking_msg=0
-if (( is_tty )) && (( ! json_mode )); then
-  printf -- "${DIM}verificando branches remotas...${RESET}" >&2
-  checking_msg=1
-fi
-
-branches_raw=$(gh api "repos/$repo/branches" --paginate 2>/dev/null)
-if [[ -z "$branches_raw" ]]; then
-  (( checking_msg )) && printf -- "\r\033[2K" >&2
-  echo "erro: não foi possível listar as branches de '$repo'" >&2
-  exit 1
-fi
-
-mapfile -t branch_names < <(jq -r --arg default "$default_branch" \
-  '.[] | select(.name != $default) | .name' <<< "$branches_raw")
-
-declare -A branch_protected
-while IFS=$'\t' read -r name protected; do
-  [[ -z "$name" ]] && continue
-  branch_protected["$name"]="$protected"
-done < <(jq -r --arg default "$default_branch" \
-  '.[] | select(.name != $default) | [.name, (.protected|tostring)] | @tsv' <<< "$branches_raw")
-
 declare -A pr_number pr_url pr_state
 
 _branch_merged() {
@@ -242,17 +224,58 @@ _fetch_branch_data() {
   jq -n --argjson pr "$pr_arg" --argjson compare "$compare_arg" \
     '{pr: $pr, compare: $compare}' > "$out" 2>/dev/null
 }
+export -f _fetch_branch_data
+
+# roda em processo separado (gum spin exige um comando pra "vigiar") - por
+# isso escreve tudo em arquivo em "$tmp_dir" ao inves de array associativo:
+# nada que essa funcao seta fica visivel pro processo pai depois que ela termina.
+_dtb_fetch_remote_branches() {
+  local repo="$1" default_branch="$2" tmp_dir="$3"
+  local branches_raw
+  branches_raw=$(gh api "repos/$repo/branches" --paginate 2>/dev/null)
+  [[ -z "$branches_raw" ]] && return 1
+
+  jq -r --arg default "$default_branch" \
+    '.[] | select(.name != $default) | .name' <<< "$branches_raw" > "$tmp_dir/branch_names.txt"
+  jq -r --arg default "$default_branch" \
+    '.[] | select(.name != $default) | [.name, (.protected|tostring)] | @tsv' <<< "$branches_raw" > "$tmp_dir/protected.tsv"
+
+  local names
+  mapfile -t names < "$tmp_dir/branch_names.txt"
+
+  local max_parallel=8 running=0 i
+  for i in "${!names[@]}"; do
+    _fetch_branch_data "${names[$i]}" "$tmp_dir/$i.json" &
+    (( ++running >= max_parallel )) && { wait -n; (( running-- )); }
+  done
+  wait
+}
+export -f _dtb_fetch_remote_branches
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-max_parallel=8
-running=0
-for i in "${!branch_names[@]}"; do
-  _fetch_branch_data "${branch_names[$i]}" "$tmp_dir/$i.json" &
-  (( ++running >= max_parallel )) && { wait -n; (( running-- )); }
-done
-wait
+if (( is_tty )) && (( ! json_mode )); then
+  gum spin --spinner dot --title "verificando branches remotas..." -- \
+    bash -c '_dtb_fetch_remote_branches "$1" "$2" "$3"' bash "$repo" "$default_branch" "$tmp_dir"
+  fetch_status=$?
+else
+  _dtb_fetch_remote_branches "$repo" "$default_branch" "$tmp_dir"
+  fetch_status=$?
+fi
+
+if (( fetch_status != 0 )); then
+  echo "erro: não foi possível listar as branches de '$repo'" >&2
+  exit 1
+fi
+
+mapfile -t branch_names < "$tmp_dir/branch_names.txt"
+
+declare -A branch_protected
+while IFS=$'\t' read -r name protected; do
+  [[ -z "$name" ]] && continue
+  branch_protected["$name"]="$protected"
+done < "$tmp_dir/protected.tsv"
 
 now=$(date +%s)
 for i in "${!branch_names[@]}"; do
@@ -291,8 +314,6 @@ mapfile -t branch_names < <(
     printf '%s\t%s\n' "${commit_epoch[$b]:-9999999999}" "$b"
   done | sort -t $'\t' -k1,1n | cut -f2-
 )
-
-(( checking_msg )) && printf -- "\r\033[2K" >&2
 
 if (( json_mode )); then
   json_items=()
@@ -413,7 +434,7 @@ if (( delete_mode )); then
       items+=("$b $tag")
     done
     mapfile -t selected < <(printf '%s\n' "${items[@]}" | gum choose --no-limit \
-      --header="branches candidatas - espaço marca, enter confirma")
+      --header="branches candidatas para serem removidas")
     for s in "${selected[@]}"; do to_delete+=("${s%% *}"); done
 
     if (( ${#to_delete[@]} > 0 )) && ! gum confirm "apagar ${#to_delete[@]} branch(es) no remote '$repo'?"; then
