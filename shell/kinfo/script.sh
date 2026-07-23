@@ -47,6 +47,42 @@ kinfo() {
     esac
   done
 
+  # kinfo roda dentro do shell interativo do usuario (funcao sourced, nao
+  # subshell) - com job control ligado (padrao em shell interativo), o "&"
+  # em background concorrendo com o "gum spin" (rodando em foreground,
+  # fazendo poll do PID) faz o bash notificar "[N] PID"/"[N]+ Done|Exit" a
+  # qualquer momento (nao so na linha do "wait" - redirecionar so a saida
+  # do "wait"/do lancamento do "&" nao e suficiente). "-m" (monitor) sozinho
+  # nao basta - "-b" (notificacao assincrona de job) tambem precisa ir,
+  # senao o aviso ainda escapa. Nenhum dos dois recursos e usado aqui (sem
+  # fg/bg/suspend) - desliga os dois so durante a chamada.
+  #
+  # Restaura via wrapper (chama _dtb_kinfo_impl e recupera o "set" depois),
+  # NAO via "trap ... RETURN": a mera presenca de um RETURN trap faz o bash
+  # voltar a emitir o aviso mesmo com "-b" desligado (comportamento
+  # observado, nao documentado) - o wrapper evita isso porque os vários
+  # "return" de dentro da função só saem dela, nunca de "kinfo" direto.
+  local _dtb_had_monitor=0 _dtb_had_notify=0
+  case "$-" in *m*) _dtb_had_monitor=1 ;; esac
+  case "$-" in *b*) _dtb_had_notify=1 ;; esac
+  if [ -n "$ZSH_VERSION" ]; then
+    unsetopt monitor notify
+  else
+    set +mb
+  fi
+  _dtb_kinfo_impl "$@"
+  local _dtb_kinfo_rc=$?
+  if [ -n "$ZSH_VERSION" ]; then
+    (( _dtb_had_monitor )) && setopt monitor
+    (( _dtb_had_notify )) && setopt notify
+  else
+    (( _dtb_had_monitor )) && set -m
+    (( _dtb_had_notify )) && set -b
+  fi
+  return "$_dtb_kinfo_rc"
+}
+
+_dtb_kinfo_impl() {
   local ENV=${1:-${K_ENV}}
   local APP=${2:-${K_APP}}
 
@@ -64,7 +100,7 @@ kinfo() {
   # sem cluster acessível, nao ha sentido em perguntar ambiente/app
   local ci_tmp
   ci_tmp="$(mktemp)"
-  kubectl cluster-info --request-timeout=10s > "$ci_tmp" 2>&1 &
+  { kubectl cluster-info --request-timeout=10s > "$ci_tmp" 2>&1 & } 2>/dev/null
   if ! _dtb_kinfo_wait_gum "Verificando credenciais do cluster..." "$!"; then
     echo -e "${RED}Erro: não foi possível conectar ao cluster (credenciais/kubeconfig inválidos?).${NC}"
     cat "$ci_tmp"
@@ -94,7 +130,7 @@ kinfo() {
     if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
       local lista_tmp lista
       lista_tmp="$(mktemp)"
-      kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' > "$lista_tmp" 2>/dev/null &
+      { kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' > "$lista_tmp" 2>/dev/null & } 2>/dev/null
       _dtb_kinfo_wait_gum "Buscando apps no namespace '$ENV'..." "$!"
       lista="$(cat "$lista_tmp")"
       rm -f "$lista_tmp"
@@ -121,7 +157,7 @@ kinfo() {
   # 3. Coleta de dados
   local DATA_RAW data_tmp
   data_tmp="$(mktemp)"
-  kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' > "$data_tmp" 2>/dev/null &
+  { kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' > "$data_tmp" 2>/dev/null & } 2>/dev/null
   _dtb_kinfo_wait_gum "Buscando detalhes do deployment '$APP'..." "$!"
   DATA_RAW="$(cat "$data_tmp")"
   rm -f "$data_tmp"
