@@ -37,14 +37,16 @@ sozinho pra decidir merge, só reforça o resultado dos 3 métodos acima.
 saber se uma branch não-mergeada só está velha ou já ficou pra trás de
 verdade.
 
-`--delete` remove (`git branch -D`) as branches identificadas como
-mergeadas. Sem `--yes`, a seleção usa `gum choose --no-limit` (espaço
-marca, enter confirma) seguido de `gum confirm` pra confirmar a
-deleção - exige terminal interativo e `gum` instalado, sem fallback
-(erro com instrução de instalação se faltar qualquer um dos dois).
-`--yes`/`-y` pula seleção/confirmação e apaga todas de uma vez, sem
-precisar de `gum`. Nunca deleta a branch raiz nem a branch com checkout
-no momento (protegida pelo próprio git contra deleção).
+`--delete` remove (`git branch -D`) branches locais - sem `--yes`, mostra
+**todas** (mergeadas ou não) num seletor `gum choose --no-limit` (espaço
+marca, enter confirma); depois lista as escolhidas e confirma via
+`gum confirm` antes de apagar de fato. Exige terminal interativo e `gum`
+instalado, sem fallback (erro com instrução de instalação se faltar
+qualquer um dos dois). `--yes`/`-y` é mais conservador: pula
+seleção/confirmação, mas só apaga as **mergeadas** (nunca precisa de
+`gum`) - decisão de apagar uma não-mergeada exige revisão humana via o
+seletor. Nunca deleta a branch raiz nem a branch com checkout no momento
+(protegida pelo próprio git contra deleção).
 
 Enquanto verifica (fetch + consulta PR por branch), mostra um spinner
 via `gum spin` com o texto "verificando branches locais..." (só em
@@ -58,8 +60,8 @@ estar desatualizado).
 
 | Flag | Efeito |
 |---|---|
-| `--delete` | apaga as branches mergeadas encontradas (seleção via `gum` - obrigatório sem `--yes`) |
-| `--yes`, `-y` | junto com `--delete`, apaga todas sem seleção/confirmação |
+| `--delete` | mostra todas as branches locais num seletor `gum` pra apagar (obrigatório sem `--yes`) |
+| `--yes`, `-y` | junto com `--delete`, apaga direto só as mergeadas, sem seleção/confirmação |
 | `--no-fetch` | pula o `git fetch` antes de comparar |
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
 | `--json` | array JSON com `{name, merged, reasons, gone}` por branch (exige `jq`) |
@@ -78,7 +80,11 @@ $ git check-local-branches --delete
 STATUS  BRANCH                                       MOTIVO
 MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged] (upstream sumiu)
 MERGED  chore/bump-deps                              [ancestor]
-# abre gum choose - espaço marca, ENTER confirma, depois gum confirm
+-       feat/wip-experimento                         [não mergeada]
+# abre gum choose com TODAS - espaço marca, ENTER confirma
+Selecionadas pra apagar:
+  - fix/promotions-mail-push-campaign-exclusion
+# gum confirm antes de apagar de fato
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
 $ git check-local-branches --delete --yes

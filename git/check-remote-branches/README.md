@@ -48,9 +48,10 @@ locais, roda de qualquer diretório.
 stale sem PR aberta (união dos dois grupos). `--only-merged`/`--only-stale`
 restringem a candidatura a só um dos grupos. Sem `--yes`, a seleção usa
 `gum choose --no-limit` (espaço marca, enter confirma) seguido de
-`gum confirm` pra confirmar a deleção - exige terminal interativo e `gum`
-instalado, sem fallback (erro com instrução de instalação se faltar
-qualquer um dos dois). `--yes`/`-y` pula seleção/confirmação e apaga
+`gum confirm` pra confirmar a deleção (antes lista as escolhidas) -
+exige terminal interativo e `gum` instalado, sem fallback (erro com
+instrução de instalação se faltar qualquer um dos dois). `--yes`/`-y`
+pula seleção/confirmação e apaga
 todas de uma vez, sem precisar de `gum`. Branch default e branches
 `protected` nunca entram como candidatas.
 
@@ -79,7 +80,10 @@ MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atr�
 $ git check-remote-branches org/repo --only-merged --delete
 STATUS            BRANCH          CRIADA POR  ATUALIZADA POR  IDADE
 MERGED [PR #120]  fix/old-bugfix  joana       carlos          45 dias atrás
-# abre gum choose - espaço marca, ENTER confirma, depois gum confirm
+# abre gum choose - espaço marca, ENTER confirma
+Selecionadas pra apagar:
+  - fix/old-bugfix
+# gum confirm antes de apagar de fato
 Deleted branch fix/old-bugfix (remote: org/repo).
 ```
 

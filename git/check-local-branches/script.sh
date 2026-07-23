@@ -44,16 +44,18 @@ Descrição:
   sinal extra, mostrado mas não usado sozinho pra decidir - só reforça o
   resultado dos 3 métodos acima.
 
-  --delete remove (git branch -D) as branches identificadas como
-  mergeadas. Sem --yes, a seleção usa "gum choose --no-limit" (espaço
-  marca, enter confirma) seguido de "gum confirm" - exige terminal
-  interativo e "gum" instalado, sem fallback. --yes pula seleção e
-  confirmação, apaga todas de uma vez (não precisa de "gum"). Nunca
+  --delete remove (git branch -D) branches locais - sem --yes, mostra
+  TODAS (mergeadas ou não) num seletor "gum choose --no-limit" (espaço
+  marca, enter confirma); depois lista as escolhidas e confirma via
+  "gum confirm" antes de apagar. Exige terminal interativo e "gum"
+  instalado, sem fallback. --yes é mais conservador: pula seleção e
+  confirmação, mas só apaga as mergeadas (não precisa de "gum"). Nunca
   deleta a branch raiz nem a branch com checkout no momento (protegida
   pelo próprio git).
 
 Opções:
-  --delete     apaga (com confirmação) as branches mergeadas encontradas
+  --delete     apaga branches locais (seleção via "gum" - --yes restringe
+               às mergeadas, sem seleção/confirmação)
   --yes, -y    junto com --delete, não pede confirmação por branch
   --no-fetch   pula o "git fetch" antes de comparar (usa o que já está
                local - mais rápido, pode estar desatualizado)
@@ -247,10 +249,11 @@ if (( json_mode )); then
   exit 0
 fi
 
-any_merged=0
+any_deletable=0
 table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tDEFASAGEM\tNOTA\n')"
 for i in "${!results_name[@]}"; do
   b="${results_name[$i]}"
+  [[ "$b" != "$real_current" ]] && any_deletable=1
 
   last_commit="$(git log -1 --format=%cr "$b" 2>/dev/null)"
   [[ -z "$last_commit" ]] && last_commit="desconhecido"
@@ -269,7 +272,6 @@ for i in "${!results_name[@]}"; do
   [[ "$b" == "$real_current" ]] && nota="${nota:+$nota, }branch atual"
 
   if (( results_merged[i] )); then
-    any_merged=1
     motivo="[${results_reasons[$i]}]"
     table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
       "${GREEN}${BOLD}MERGED${RESET}" "$b" "${DIM}${motivo}${RESET}" "${DIM}${last_commit}${RESET}" "${DIM}${defasagem}${RESET}" "${YELLOW}${nota}${RESET}")"
@@ -286,9 +288,9 @@ if (( ! delete_mode )) && (( is_tty )); then
     "saída em JSON pra script/pipe"
     "pula o git fetch antes de comparar"
   )
-  if (( any_merged )); then
+  if (( any_deletable )); then
     dtb_hints_flags+=("--delete")
-    dtb_hints_descs+=("apaga as mergeadas (--yes pula confirmação)")
+    dtb_hints_descs+=("escolhe quais apagar (--yes apaga só as mergeadas)")
   fi
   dtb_print_random_hint "git check-local-branches" "$DIM" "$RESET"
 fi
@@ -296,9 +298,13 @@ fi
 if (( delete_mode )); then
   echo
 
+  # candidatos = toda branch local exceto raiz (ja fora de results_name) e a
+  # atual (protegida). --yes so apaga as mergeadas (sem revisao humana, fica
+  # restrito ao criterio seguro); o picker interativo mostra todas - a
+  # decisao de apagar uma nao-mergeada fica por conta de quem escolhe.
   candidates=()
+  safe_candidates=()
   for i in "${!results_name[@]}"; do
-    (( ! results_merged[i] )) && continue
     b="${results_name[$i]}"
     if [[ "$b" == "$real_current" ]]; then
       if (( is_tty )) && command -v gum &>/dev/null; then
@@ -308,20 +314,33 @@ if (( delete_mode )); then
       fi
       continue
     fi
-    tag="[${results_reasons[$i]}]"
-    (( results_gone[i] )) && tag="$tag (upstream sumiu)"
+    if (( results_merged[i] )); then
+      tag="[${results_reasons[$i]}]"
+      (( results_gone[i] )) && tag="$tag (upstream sumiu)"
+      safe_candidates+=("$b"$'\t'"$tag")
+    else
+      tag="[não mergeada]"
+      (( results_gone[i] )) && tag="$tag (upstream sumiu)"
+    fi
     candidates+=("$b"$'\t'"$tag")
   done
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
     if (( is_tty )) && command -v gum &>/dev/null; then
-      gum log -l info "nenhuma branch mergeada pra apagar"
+      gum log -l info "nenhuma branch pra apagar"
     else
-      echo "nenhuma branch mergeada pra apagar" >&2
+      echo "nenhuma branch pra apagar" >&2
     fi
   elif (( yes_mode )); then
-    for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
+    if (( ${#safe_candidates[@]} == 0 )); then
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l info "nenhuma branch mergeada pra apagar (--yes só apaga mergeadas)"
+      else
+        echo "nenhuma branch mergeada pra apagar (--yes só apaga mergeadas)" >&2
+      fi
+    fi
+    for c in "${safe_candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
   elif (( ! is_tty )); then
     echo "erro: --delete sem --yes precisa de terminal interativo pra selecionar as branches (via gum)" >&2
     exit 1
@@ -333,11 +352,15 @@ if (( delete_mode )); then
       items+=("$b $tag")
     done
     mapfile -t selected < <(printf '%s\n' "${items[@]}" | gum choose --no-limit \
-      --header="branches mergeadas - espaço marca, enter confirma")
+      --header="branches locais - selecione para remover")
     for s in "${selected[@]}"; do to_delete+=("${s%% *}"); done
 
-    if (( ${#to_delete[@]} > 0 )) && ! gum confirm "apagar ${#to_delete[@]} branch(es) local(is)?"; then
-      to_delete=()
+    if (( ${#to_delete[@]} > 0 )); then
+      echo
+      echo "Selecionadas pra apagar:"
+      for b in "${to_delete[@]}"; do echo "  - $b"; done
+      echo
+      gum confirm "apagar ${#to_delete[@]} branch(es) local(is)?" || to_delete=()
     fi
   fi
 

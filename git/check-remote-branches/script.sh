@@ -448,8 +448,12 @@ if (( delete_mode )); then
       --header="branches candidatas para serem removidas")
     for s in "${selected[@]}"; do to_delete+=("${s%% *}"); done
 
-    if (( ${#to_delete[@]} > 0 )) && ! gum confirm "apagar ${#to_delete[@]} branch(es) no remote '$repo'?"; then
-      to_delete=()
+    if (( ${#to_delete[@]} > 0 )); then
+      echo
+      echo "Selecionadas pra apagar:"
+      for b in "${to_delete[@]}"; do echo "  - $b"; done
+      echo
+      gum confirm "apagar ${#to_delete[@]} branch(es) no remote '$repo'?" || to_delete=()
     fi
   fi
 
