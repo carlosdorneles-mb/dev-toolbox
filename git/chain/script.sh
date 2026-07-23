@@ -236,8 +236,10 @@ fi
 # --no-warning silencia tudo (util em script que so quer a cadeia, sem ruido).
 # gum e so um enhancement aqui (nao obrigatorio, ao contrario de
 # check-local/remote-branches) - sem gum cai no echo manual de sempre.
+warned=0
 _warn() {
   (( no_warning )) && return
+  warned=1
   if (( is_tty )) && command -v gum &>/dev/null; then
     gum log -l warn "$*"
   else
@@ -358,6 +360,9 @@ done
 if (( truncated )); then
   _warn "nao foi possivel resolver o parent de '$current' - cadeia truncada"
 fi
+
+# espaco entre os avisos (stderr) e a cadeia (stdout) - só quando teve aviso
+(( warned )) && echo >&2
 
 # so espera o fetch em background aqui, na hora que o resultado importa -
 # com gum, o fetch acima ja rodou sincrono (com spinner), nao ha o que esperar
