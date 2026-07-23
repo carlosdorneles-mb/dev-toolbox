@@ -394,7 +394,11 @@ if (( delete_mode )); then
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
-    : # nada a apagar
+    if (( only_stale )); then
+      echo "nenhuma branch stale sem PR aberta pra apagar" >&2
+    else
+      echo "nenhuma branch mergeada pra apagar (use --only-stale pra apagar as stale sem PR aberta)" >&2
+    fi
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
   elif (( is_tty )) && command -v fzf &>/dev/null; then

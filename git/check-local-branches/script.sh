@@ -272,7 +272,7 @@ if (( delete_mode )); then
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
-    : # nada a apagar
+    echo "nenhuma branch mergeada pra apagar" >&2
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
   elif (( is_tty )) && command -v fzf &>/dev/null; then
