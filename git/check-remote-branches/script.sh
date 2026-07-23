@@ -381,24 +381,21 @@ if (( delete_mode )); then
   for b in "${branch_names[@]}"; do
     _branch_matches_filters "$b" || continue
     [[ "${branch_protected[$b]}" == "true" ]] && continue
-    if (( only_stale )); then
-      [[ "${is_stale[$b]}" == "1" ]] || continue
-      [[ "${pr_state[$b]}" == "OPEN" ]] && continue
-    else
-      _branch_merged "$b" || continue
-    fi
+
+    is_deletable_stale=0
+    [[ "${is_stale[$b]}" == "1" ]] && [[ "${pr_state[$b]}" != "OPEN" ]] && is_deletable_stale=1
+
+    _branch_merged "$b" || (( is_deletable_stale )) || continue
+
     tag="[sem PR]"
     _branch_merged "$b" && tag="[PR #${pr_number[$b]}]"
+    (( is_deletable_stale )) && tag="$tag stale"
     candidates+=("$b"$'\t'"$tag")
   done
 
   to_delete=()
   if (( ${#candidates[@]} == 0 )); then
-    if (( only_stale )); then
-      echo "nenhuma branch stale sem PR aberta pra apagar" >&2
-    else
-      echo "nenhuma branch mergeada pra apagar (use --only-stale pra apagar as stale sem PR aberta)" >&2
-    fi
+    echo "nenhuma branch mergeada ou stale pra apagar" >&2
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
   elif (( is_tty )) && command -v fzf &>/dev/null; then

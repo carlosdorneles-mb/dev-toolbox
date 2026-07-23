@@ -44,10 +44,11 @@ locais, roda de qualquer diretório.
 
 ### Deleção
 
-`--delete` apaga as branches candidatas (mergeadas por padrão; com
-`--only-stale`, as stale sem PR aberta). Com `fzf` instalado (e terminal
-interativo), abre seleção múltipla - TAB marca, ENTER confirma. Sem `fzf`,
-cai pra confirmação y/N por branch. `--yes`/`-y` pula qualquer
+`--delete` apaga as branches candidatas: por padrão, mergeadas **ou**
+stale sem PR aberta (união dos dois grupos). `--only-merged`/`--only-stale`
+restringem a candidatura a só um dos grupos. Com `fzf` instalado (e
+terminal interativo), abre seleção múltipla - TAB marca, ENTER confirma.
+Sem `fzf`, cai pra confirmação y/N por branch. `--yes`/`-y` pula qualquer
 seleção/confirmação e apaga todas de uma vez. Branch default e branches
 `protected` nunca entram como candidatas.
 
