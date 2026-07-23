@@ -11,7 +11,8 @@ kinfo -h | --help
 ```
 
 - `<ambiente>` (obrigatório) - namespace do Kubernetes. Se omitido, cai no
-  fallback da variável de ambiente `$K_ENV`.
+  fallback da variável de ambiente `$K_ENV`; se nenhum dos dois existir e
+  `gum` estiver instalado, pede via prompt (`gum input`).
 - `[nome-do-app]` (opcional) - nome do deployment. Se omitido, cai no
   fallback de `$K_APP`; se nenhum dos dois existir e `gum` estiver
   instalado, abre um seletor com os deployments do namespace.
@@ -19,8 +20,8 @@ kinfo -h | --help
 
 ## Descrição
 
-1. Valida que o ambiente foi informado (direto, ou via `$K_ENV`) - sem ele,
-   sai com erro.
+1. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via prompt
+   `gum input` se `gum` estiver instalado) - sem ele, sai com erro.
 2. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
    deixar claro em qual cluster a consulta vai rodar.
 3. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
@@ -46,8 +47,9 @@ setado - mesma convenção do resto do dev-toolbox (`deps.sh`, `install.sh`).
 
 - **Obrigatório:** `kubectl` configurado com acesso ao cluster/namespace
   consultado (contexto/kubeconfig já resolvido fora deste comando).
-- **Opcional:** `gum` - só necessário se o nome do app for omitido e não
-  vier de `$K_APP`.
+- **Opcional:** `gum` - usado pra pedir o ambiente (se omitido e sem
+  `$K_ENV`) e pro seletor de app (se omitido e sem `$K_APP`). Sem `gum`,
+  ambos os casos caem em erro/uso.
 
 ## Exemplo
 

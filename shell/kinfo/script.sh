@@ -1,7 +1,7 @@
 # Comando "kinfo": mostra detalhes de um deployment/pod no Kubernetes
 # (namespace, env, versão, quem/quando fez o último deploy). Com gum
-# instalado e o nome do app omitido, abre um seletor com os deployments do
-# namespace.
+# instalado: ambiente omitido pede via "gum input"; app omitido abre um
+# seletor ("gum filter") com os deployments do namespace.
 #
 # Uso: kinfo <ambiente> [nome-do-app]
 # Uso: kinfo -h | --help
@@ -18,7 +18,8 @@ Descrição:
   deployments do namespace.
 
 Opções:
-  <ambiente>     namespace do Kubernetes (fallback: $K_ENV)
+  <ambiente>     namespace do Kubernetes (fallback: $K_ENV; sem os dois,
+                 com gum instalado pede via prompt "gum input")
   [nome-do-app]  nome do deployment (fallback: $K_APP; sem os dois, abre
                  seletor gum se instalado)
   -h             mostra esta ajuda
@@ -46,7 +47,11 @@ kinfo() {
     return 1
   fi
 
-  # 1. Validação do Ambiente
+  # 1. Validação do Ambiente - sem ele (nem argumento, nem $K_ENV), com gum
+  # instalado abre um prompt pra digitar em vez de só erro/uso
+  if [ -z "$ENV" ] && [ -t 1 ] && command -v gum >/dev/null 2>&1; then
+    ENV=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
+  fi
   if [ -z "$ENV" ]; then
     echo -e "${RED}Erro: O nome do ambiente (namespace) é obrigatório.${NC}"
     echo -e "Uso: kinfo <ambiente> [nome-do-app]"
@@ -59,7 +64,7 @@ kinfo() {
 
   # 2. Lógica do App e Alerta do gum
   if [ -z "$APP" ]; then
-    if command -v gum >/dev/null 2>&1; then
+    if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
       echo -e "${BLUE}Buscando apps no namespace '$ENV'...${NC}"
       local lista
       lista="$(kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)"
@@ -72,9 +77,10 @@ kinfo() {
     else
       # Alerta de instalação
       echo -e "${RED}--------------------------------------------------------"
-      echo -e "AVISO: Nome do app não informado e 'gum' não detectado."
+      echo -e "AVISO: Nome do app não informado, e não dá pra abrir seletor"
+      echo -e "('gum' ausente ou sem terminal interativo)."
       echo -e "--------------------------------------------------------${NC}"
-      echo -e "Instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash"
+      echo -e "Sem 'gum', instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash"
       echo -e ""
       echo -e "Ou informe o app manualmente: ${BLUE}kinfo $ENV <nome-app>${NC}"
       echo -e "${RED}--------------------------------------------------------${NC}"
