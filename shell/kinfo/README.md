@@ -20,26 +20,30 @@ kinfo -h | --help
 
 ## Descrição
 
-1. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via prompt
+1. Verifica credenciais/conectividade via `kubectl cluster-info
+   --request-timeout=10s` antes de qualquer outra coisa (com spinner
+   `gum spin` em terminal interativo) - falha aqui já sai com erro
+   mostrando a saída do `cluster-info`, sem nem pedir ambiente/app.
+2. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via prompt
    `gum input` se `gum` estiver instalado - o valor digitado é ecoado de
    volta) - sem ele, sai com erro.
-2. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
+3. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
    deixar claro em qual cluster a consulta vai rodar.
-3. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
+4. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
    `gum filter` alimentado por `kubectl get deployments -n <ambiente>`
    (roda com spinner `gum spin` enquanto busca). Sem `gum` instalado e sem
    app informado, mostra um aviso com instrução de instalação e sai.
-4. Busca via `kubectl get deployment <app> -n <ambiente> --request-timeout=10s
+5. Busca via `kubectl get deployment <app> -n <ambiente> --request-timeout=10s
    -o jsonpath=...` (com spinner `gum spin` em terminal interativo): nome,
    namespace, variáveis de ambiente `OTEL_APP_ENV`/`OTEL_APP_VERSION` do
    primeiro container, e a annotation `last_deploy_by`. `Env`/`Version`
    mostram `<não configurado>` se a env var não existir no deployment.
-5. Separa a annotation `last_deploy_by` (formato
+6. Separa a annotation `last_deploy_by` (formato
    `<usuario>-<timestamp ISO8601>`, ex:
    `jefferson.silva-2026-03-12T19:49:17+0000`) em usuário e data/hora,
    convertendo a data pro formato `dd/mm/aaaa HH:MM:SS` (`date -j` no
    macOS, `date -d` no Linux - se a conversão falhar, mostra a data crua).
-6. Imprime um resumo formatado e colorido com todos os campos acima.
+7. Imprime um resumo formatado e colorido com todos os campos acima.
 
 Saída colorida só em terminal interativo (`[[ -t 1 ]]`) e sem `NO_COLOR`
 setado - mesma convenção do resto do dev-toolbox (`deps.sh`, `install.sh`).

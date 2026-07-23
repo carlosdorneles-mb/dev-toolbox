@@ -13,9 +13,10 @@ Uso:
   kinfo <ambiente> [nome-do-app]
 
 Descrição:
-  Mostra namespace, env, versão e quem/quando fez o último deploy. Com
-  gum instalado e o nome do app omitido, abre um seletor com os
-  deployments do namespace.
+  Verifica credenciais/conectividade do cluster ("kubectl cluster-info")
+  antes de qualquer coisa. Mostra namespace, env, versão e quem/quando
+  fez o último deploy. Com gum instalado e o nome do app omitido, abre
+  um seletor com os deployments do namespace.
 
 Opções:
   <ambiente>     namespace do Kubernetes (fallback: $K_ENV; sem os dois,
@@ -58,6 +59,19 @@ kinfo() {
     echo -e "${RED}Erro: 'kubectl' não encontrado - instale-o antes de usar o kinfo.${NC}"
     return 1
   fi
+
+  # 0. Verifica credenciais/conectividade antes de pedir qualquer coisa -
+  # sem cluster acessível, nao ha sentido em perguntar ambiente/app
+  local ci_tmp
+  ci_tmp="$(mktemp)"
+  kubectl cluster-info --request-timeout=10s > "$ci_tmp" 2>&1 &
+  if ! _dtb_kinfo_wait_gum "Verificando credenciais do cluster..." "$!"; then
+    echo -e "${RED}Erro: não foi possível conectar ao cluster (credenciais/kubeconfig inválidos?).${NC}"
+    cat "$ci_tmp"
+    rm -f "$ci_tmp"
+    return 1
+  fi
+  rm -f "$ci_tmp"
 
   # 1. Validação do Ambiente - sem ele (nem argumento, nem $K_ENV), com gum
   # instalado abre um prompt pra digitar em vez de só erro/uso
