@@ -1,0 +1,2 @@
+[alias]
+	remote-branches = !bash {{ROOT}}/git/remote-branches/script.sh

@@ -14,6 +14,13 @@
     "description": "Lists local branches already merged into origin's root branch, with an optional --delete"
   },
   {
+    "id": "remote-branches",
+    "type": "git",
+    "path": "git/remote-branches/alias.gitconfig",
+    "entry": "remote-branches",
+    "description": "Lists a GitHub repo's remote branches via API with merge/PR status, authorship and age, with an optional --delete"
+  },
+  {
     "id": "aliases",
     "type": "shell",
     "path": "shell/aliases/script.sh",
