@@ -1,3 +1,23 @@
 /git/aliases.local.gitconfig
 /shell/aliases.local.sh
 /.installed
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+*~
+
+# Logs / temp
+*.log
+.tmp-rb-*
+
+# Superpowers
+docs/superpowers/
+
+# Claude Code
+.claude/plans/
+.claude/specs/
