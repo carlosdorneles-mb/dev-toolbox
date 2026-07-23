@@ -13,12 +13,12 @@ stale_days=90
 repo_arg=""
 show_help=0
 
-_dtb_help_remote_branches() {
+_dtb_help_check_remote_branches() {
   cat <<'EOF'
-git remote-branches - lista branches remotas de um repo GitHub (via API, sem clone/fetch local), com status de merge/PR/idade, e permite apagar as encontradas
+git check-remote-branches - lista branches remotas de um repo GitHub (via API, sem clone/fetch local), com status de merge/PR/idade, e permite apagar as encontradas
 
 Uso:
-  git remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
+  git check-remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
 
 Descrição:
   Pra cada branch remota do repo (exceto a branch default), resolve:
@@ -78,7 +78,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if (( show_help )); then
-  _dtb_help_remote_branches
+  _dtb_help_check_remote_branches
   exit 0
 fi
 
@@ -153,6 +153,20 @@ if (( is_tty )) && (( ! no_color_flag )) && [[ -z "$NO_COLOR" ]]; then
 else
   BOLD=""; DIM=""; RESET=""; GREEN=""; YELLOW=""
 fi
+
+# hyperlink OSC 8 - terminal sem suporte (ou saida via pipe/redirect) so
+# ignora a sequencia e mostra o texto puro, sem quebrar nada
+use_links=0
+(( is_tty )) && use_links=1
+
+_dtb_link() {
+  local url="$1" text="$2"
+  if (( use_links )) && [[ -n "$url" ]]; then
+    printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$url" "$text"
+  else
+    printf '%s' "$text"
+  fi
+}
 
 checking_msg=0
 if (( is_tty )) && (( ! json_mode )); then
@@ -283,15 +297,15 @@ if (( json_mode )); then
 fi
 
 any_shown=0
-table_rows="$(printf 'STATUS\tBRANCH\tCRIADA_POR\tATUALIZADA_POR\tIDADE\tFLAGS\n')"
+table_rows="$(printf 'STATUS\tBRANCH\tCRIADA POR\tATUALIZADA POR\tIDADE\tFLAGS\n')"
 for b in "${branch_names[@]}"; do
   _branch_matches_filters "$b" || continue
   any_shown=1
 
   if _branch_merged "$b"; then
-    status="${GREEN}${BOLD}MERGED${RESET} [PR #${pr_number[$b]}]"
+    status="${GREEN}${BOLD}MERGED${RESET} [$(_dtb_link "${pr_url[$b]}" "PR #${pr_number[$b]}")]"
   elif [[ "${pr_state[$b]}" == "OPEN" ]]; then
-    status="${DIM}-${RESET} [PR aberta #${pr_number[$b]}]"
+    status="${DIM}-${RESET} [$(_dtb_link "${pr_url[$b]}" "PR aberta #${pr_number[$b]}")]"
   else
     status="${DIM}-${RESET} [sem PR]"
   fi
@@ -305,8 +319,10 @@ for b in "${branch_names[@]}"; do
   age_label="idade desconhecida"
   [[ -n "${age_days[$b]}" ]] && age_label="${age_days[$b]} dias atrás"
 
+  branch_cell="$(_dtb_link "https://github.com/$repo/tree/$b" "$b")"
+
   table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
-    "$status" "$b" "${created_by[$b]:-?}" "${updated_by[$b]:-?}" "$age_label" "$flags")"
+    "$status" "$branch_cell" "${created_by[$b]:-?}" "${updated_by[$b]:-?}" "$age_label" "$flags")"
 done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 

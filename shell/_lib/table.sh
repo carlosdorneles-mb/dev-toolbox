@@ -1,11 +1,11 @@
 # Biblioteca compartilhada de tabela alinhada pra scripts bash do dev-toolbox
-# (git/check-merged, git/remote-branches etc). NÃO é item instalável (fora do
+# (git/check-local-branches, git/check-remote-branches etc). NÃO é item instalável (fora do
 # catalog.json) - sourced via {{ROOT}} pelos scripts que precisam.
 #
 # Recebe linhas TSV via stdin (1a linha = header) e imprime alinhado por
-# coluna, largura calculada ignorando códigos ANSI (senão colorir uma coluna
-# desalinha as outras). Header sai em negrito, sem cor própria - mesma
-# convenção do script "aliases".
+# coluna, largura calculada ignorando códigos ANSI e hyperlinks OSC 8
+# (senão colorir/linkar uma coluna desalinha as outras). Header sai em
+# negrito, sem cor própria - mesma convenção do script "aliases".
 #
 # Uso:
 #   { printf 'COL1\tCOL2\n'; printf 'a\tb\n'; } | dtb_print_table "$bold" "$reset"
@@ -15,7 +15,11 @@ if [[ -z "${_DTB_TABLE_LOADED:-}" ]]; then
   dtb_print_table() {
     local bold="$1" reset="$2"
     awk -F'\t' -v bold="$bold" -v reset="$reset" '
-      function strip(s) { gsub(/\033\[[0-9;]*m/, "", s); return s }
+      function strip(s) {
+        gsub(/\033\[[0-9;]*m/, "", s)
+        gsub(/\033\]8;;[^\033]*\033\\/, "", s)
+        return s
+      }
       {
         raw[NR] = $0
         n = split($0, f, "\t")

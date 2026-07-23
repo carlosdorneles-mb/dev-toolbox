@@ -77,7 +77,7 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
    `shell/kinfo/script.sh`, `shell/update/script.sh`).
 2. **Função de help:** texto do `-h`/`--help` sempre numa função dedicada,
    nomeada `_dtb_help_<id>` (`<id>` = nome do diretório do item, hífen vira
-   underscore — ex: `_dtb_help_fix_network`, `_dtb_help_check_merged`). A
+   underscore — ex: `_dtb_help_fix_network`, `_dtb_help_check_local_branches`). A
    função só imprime (heredoc `cat <<'EOF' ... EOF`); quem decide
    `exit`/`return` é o caller, no case do parsing.
 3. **Texto do help, mesma estrutura sempre:**
@@ -97,7 +97,7 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
    Exemplos:              (opcional — só quando exemplos agregam, ex: git/chain)
      $ <comando> ...
    ```
-   Ver `git/chain/script.sh` e `git/check-merged/script.sh` como referência
+   Ver `git/chain/script.sh` e `git/check-local-branches/script.sh` como referência
    completa (com Exemplos:); `shell/kinfo`, `shell/update`, `shell/aliases`,
    `shell/fix-network` como referência enxuta (sem Exemplos:).
 

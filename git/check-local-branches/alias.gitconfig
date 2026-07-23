@@ -1,0 +1,1 @@
+check-local-branches = !bash {{ROOT}}/git/check-local-branches/script.sh

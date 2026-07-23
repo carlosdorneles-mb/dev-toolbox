@@ -12,12 +12,12 @@ delete_mode=0
 yes_mode=0
 json_mode=0
 
-_dtb_help_check_merged() {
+_dtb_help_check_local_branches() {
   cat <<'EOF'
-git check-merged - lista branches locais ja mergeadas no remote (origin por padrao)
+git check-local-branches - lista branches locais já mergeadas no remote (origin por padrão)
 
 Uso:
-  git check-merged [--delete [--yes]] [--no-fetch] [--no-color] [--json]
+  git check-local-branches [--delete [--yes]] [--no-fetch] [--no-color] [--json]
 
 Descrição:
   Pra cada branch local (exceto a raiz main/master), verifica se o
@@ -61,13 +61,13 @@ Opções:
   -h           mostra esta ajuda
 
 Exemplos:
-  $ git check-merged
+  $ git check-local-branches
   STATUS  BRANCH                                       TAGS
   MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
   MERGED  chore/bump-deps                               [ancestor]
   -       feat/promotions-autonomous-process             (ainda em uso)
 
-  $ git check-merged --delete
+  $ git check-local-branches --delete
   MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged, gone]
   apagar 'fix/promotions-mail-push-campaign-exclusion'? [y/N] y
   Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
@@ -96,7 +96,7 @@ if (( json_mode )) && ! command -v jq &>/dev/null; then
 fi
 
 if [[ -n "$show_help" ]]; then
-  _dtb_help_check_merged
+  _dtb_help_check_local_branches
   exit 0
 fi
 
@@ -117,7 +117,7 @@ fi
 
 checking_msg=0
 if (( is_tty )) && (( ! json_mode )); then
-  printf -- "${DIM}verificando branches mergeadas...${RESET}" >&2
+  printf -- "${DIM}verificando branches locais...${RESET}" >&2
   checking_msg=1
 fi
 

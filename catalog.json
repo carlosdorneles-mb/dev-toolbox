@@ -7,17 +7,17 @@
     "description": "Shows the branch chain (PR stack) from current to main"
   },
   {
-    "id": "check-merged",
+    "id": "check-local-branches",
     "type": "git",
-    "path": "git/check-merged/alias.gitconfig",
-    "entry": "check-merged",
+    "path": "git/check-local-branches/alias.gitconfig",
+    "entry": "check-local-branches",
     "description": "Lists local branches already merged into origin's root branch, with an optional --delete"
   },
   {
-    "id": "remote-branches",
+    "id": "check-remote-branches",
     "type": "git",
-    "path": "git/remote-branches/alias.gitconfig",
-    "entry": "remote-branches",
+    "path": "git/check-remote-branches/alias.gitconfig",
+    "entry": "check-remote-branches",
     "description": "Lists a GitHub repo's remote branches via API with merge/PR status, authorship and age, with an optional --delete"
   },
   {

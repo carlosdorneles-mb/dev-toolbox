@@ -1,4 +1,4 @@
-# git check-merged
+# git check-local-branches
 
 Lista branches locais já mergeadas no remote (`origin` por padrão), com
 opção de apagar as encontradas.
@@ -6,7 +6,7 @@ opção de apagar as encontradas.
 ## Uso
 
 ```bash
-git check-merged [--delete [--yes]] [--no-fetch] [--no-color] [--json]
+git check-local-branches [--delete [--yes]] [--no-fetch] [--no-color] [--json]
 ```
 
 ## Descrição
@@ -62,26 +62,26 @@ estar desatualizado).
 ## Exemplos
 
 ```bash
-$ git check-merged
+$ git check-local-branches
 STATUS  BRANCH                                       TAGS
 MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
 MERGED  chore/bump-deps                               [ancestor]
 -       feat/promotions-autonomous-process             (branch atual)
 
-$ git check-merged --delete
+$ git check-local-branches --delete
 STATUS  BRANCH                                       TAGS
 MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
 MERGED  chore/bump-deps                               [ancestor]
 # abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
-$ git check-merged --delete --yes
+$ git check-local-branches --delete --yes
 STATUS  BRANCH                                       TAGS
 MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged, gone]
 # --yes apaga direto, sem seleção/confirmação
 Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 
-$ git check-merged --json
+$ git check-local-branches --json
 [
   {"name": "fix/promotions-mail-push-campaign-exclusion", "merged": true,
    "reasons": ["PR merged"], "gone": true},

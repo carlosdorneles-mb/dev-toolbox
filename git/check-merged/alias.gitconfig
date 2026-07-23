@@ -1,1 +1,0 @@
-check-merged = !bash {{ROOT}}/git/check-merged/script.sh

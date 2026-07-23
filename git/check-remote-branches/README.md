@@ -1,4 +1,4 @@
-# git remote-branches
+# git check-remote-branches
 
 Lista as branches remotas de um repo GitHub - via API (`gh`), sem clone ou
 fetch local - com status de merge/PR, autoria e idade, e permite apagar as
@@ -7,7 +7,7 @@ encontradas.
 ## Uso
 
 ```bash
-git remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
+git check-remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
 ```
 
 ## Descrição
@@ -22,7 +22,12 @@ Pra cada branch remota do repo (exceto a branch default), resolve:
   último/quando.
 - **stale**: último commit mais antigo que `--stale-days` (default: 90).
 
-Complementa o `git check-merged` (que analisa branches *locais* já
+Em terminal (não `--json`), `BRANCH` e `[PR #N]`/`[PR aberta #N]` saem como
+hyperlink clicável (OSC 8) - `BRANCH` abre a branch no GitHub, o PR abre a
+página da PR. Terminal sem suporte a OSC 8 mostra o texto normal, sem
+sequência de escape visível.
+
+Complementa o `git check-local-branches` (que analisa branches *locais* já
 mergeadas usando objetos git locais) - esse aqui cobre branches que existem
 só no GitHub e nunca foram trazidas pro clone de ninguém.
 
@@ -62,14 +67,14 @@ seleção/confirmação e apaga todas de uma vez. Branch default e branches
 ## Exemplos
 
 ```bash
-$ git remote-branches org/repo
-STATUS               BRANCH             CRIADA_POR  ATUALIZADA_POR  IDADE            FLAGS
+$ git check-remote-branches org/repo
+STATUS               BRANCH             CRIADA POR  ATUALIZADA POR  IDADE            FLAGS
 MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atras
 - [PR aberta #130]   feat/wip-thing     carlos      carlos          2 dias atras
 - [sem PR]           chore/abandoned    pedro       pedro           210 dias atras   ⚠ stale
 
-$ git remote-branches org/repo --only-merged --delete
-STATUS            BRANCH          CRIADA_POR  ATUALIZADA_POR  IDADE
+$ git check-remote-branches org/repo --only-merged --delete
+STATUS            BRANCH          CRIADA POR  ATUALIZADA POR  IDADE
 MERGED [PR #120]  fix/old-bugfix  joana       carlos          45 dias atras
 # abre fzf (com fzf instalado) - filtrar> TAB marca, ENTER confirma
 Deleted branch fix/old-bugfix (remote: org/repo).
