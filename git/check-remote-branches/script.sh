@@ -93,7 +93,13 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-if ! command -v gum &>/dev/null; then
+is_tty=0
+[[ -t 1 ]] && is_tty=1
+
+# gum só é usado no spinner de carregamento (terminal + fora de --json) e no
+# picker do --delete interativo - nesses dois casos, sem gum, nao tem
+# fallback. --json/pipe e --delete --yes nunca chegam a precisar dele.
+if (( is_tty )) && (( ! json_mode )) && ! command -v gum &>/dev/null; then
   echo "erro: 'gum' não encontrado - instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
   exit 1
 fi
@@ -149,9 +155,6 @@ resolve_repo() {
 }
 
 resolve_repo "$repo_arg"
-
-is_tty=0
-[[ -t 1 ]] && is_tty=1
 
 if (( is_tty )) && (( ! no_color_flag )) && [[ -z "$NO_COLOR" ]]; then
   BOLD=$'\e[1m'; DIM=$'\e[2m'; RESET=$'\e[0m'
@@ -419,10 +422,6 @@ if (( delete_mode )); then
     echo "nenhuma branch mergeada ou stale pra apagar" >&2
   elif (( yes_mode )); then
     for c in "${candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
-  elif ! command -v gum &>/dev/null; then
-    echo "erro: 'gum' não encontrado - obrigatório pra selecionar/confirmar branches no --delete interativo (ou use --yes)" >&2
-    echo "instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash" >&2
-    exit 1
   elif (( ! is_tty )); then
     echo "erro: --delete sem --yes precisa de terminal interativo pra selecionar as branches (via gum)" >&2
     exit 1

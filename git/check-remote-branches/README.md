@@ -87,5 +87,7 @@ Deleted branch fix/old-bugfix (remote: org/repo).
 
 `gh` (autenticado, `gh auth login`) e `jq` são dependências obrigatórias -
 todo caminho de código parseia JSON de resposta da API. `gum` é
-obrigatório pra `--delete` sem `--yes` (seleção via `gum choose` +
-confirmação via `gum confirm`, sem fallback) - `--yes` não precisa dele.
+obrigatório em terminal interativo fora de `--json` - usado no spinner de
+carregamento (`gum spin`) e, sem `--yes`, na seleção/confirmação do
+`--delete` (`gum choose` + `gum confirm`), sem fallback pra nenhum dos
+dois. `--json`/pipe e `--delete --yes` nunca chegam a precisar dele.
