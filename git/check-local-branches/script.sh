@@ -235,11 +235,10 @@ done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! delete_mode )) && (( is_tty )); then
-  dica_flags=("--json" "--no-fetch" "--no-color")
+  dica_flags=("--json" "--no-fetch")
   dica_descs=(
     "saída em JSON pra script/pipe"
     "pula o git fetch antes de comparar"
-    "desabilita cores (mesmo efeito de NO_COLOR=1)"
   )
   if (( any_merged )); then
     dica_flags+=("--delete")
