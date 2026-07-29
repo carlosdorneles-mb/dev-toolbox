@@ -50,11 +50,8 @@ setado - mesma convenção do resto do dev-toolbox (`deps.sh`, `install.sh`).
 
 ## Requisitos
 
-- **Obrigatório:** `kubectl` configurado com acesso ao cluster/namespace
-  consultado (contexto/kubeconfig já resolvido fora deste comando).
-- **Opcional:** `gum` - usado pra pedir o ambiente (se omitido e sem
-  `$K_ENV`) e pro seletor de app (se omitido e sem `$K_APP`). Sem `gum`,
-  ambos os casos caem em erro/uso.
+`kubectl` configurado com acesso ao cluster/namespace consultado
+(contexto/kubeconfig já resolvido fora deste comando).
 
 ## Exemplo
 

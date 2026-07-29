@@ -6,27 +6,11 @@
 # Uso: update --only-dev-toolbox
 # Uso: update -h | --help
 _dtb_help_update() {
-  cat <<'EOF'
-update - atualiza pacotes do sistema e ferramentas de dev instaladas
-
-Uso:
-  update [--only-dev-toolbox]
-
-Descrição:
-  Atualiza o próprio dev-toolbox (git pull + re-instala se mudou),
-  pacotes do sistema (apt/brew) e ferramentas de dev instaladas (uv,
-  poetry, mise, flatpak, snap, aqua, gcloud, rustup, pipx, cursor,
-  vscode, sublime, podman, gh+extensions, docker desktop, mas), pulando
-  qualquer uma não presente na máquina. Blocos específicos de
-  apt/dpkg/systemctl só rodam no Linux; 'mas' (Mac App Store) só no
-  macOS.
-
-Opções:
-  --only-dev-toolbox   roda só o bloco de git pull + re-instala do
-                       próprio dev-toolbox, pulando pacotes do sistema e
-                       demais ferramentas
-  -h                   mostra esta ajuda
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "{{ROOT}}/shell/update/README.md"
+  else
+    cat "{{ROOT}}/shell/update/README.md"
+  fi
 }
 
 update() {

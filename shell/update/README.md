@@ -57,13 +57,6 @@ cada bloco só se o binário correspondente existir na máquina
 - **Limpeza** (`apt autoremove -y && apt autoclean`) - roda por último, tira
   pacotes órfãos deixados pelos upgrades acima
 
-## Requisitos
-
-- **Obrigatório:** `bash`/`zsh`, `sudo`.
-- **Opcional:** cada ferramenta listada acima só é atualizada se já estiver
-  instalada (`command -v`) - nenhuma delas é instalada do zero por este
-  comando.
-
 ## Compatibilidade Ubuntu/Debian x macOS
 
 Detecta o SO via `uname -s` e ajusta os blocos que dependem de gerenciador

@@ -15,39 +15,11 @@ repo_arg=""
 show_help=0
 
 _dtb_help_check_remote_branches() {
-  cat <<'EOF'
-git check-remote-branches - lista branches remotas de um repo GitHub (via API, sem clone/fetch local), com status de merge/PR/idade, e permite apagar as encontradas
-
-Uso:
-  git check-remote-branches [org/repo|URL] [--delete [--yes]] [--stale-days N] [--only-merged] [--only-stale] [--json] [--no-color]
-
-Descrição:
-  Pra cada branch remota do repo (exceto a branch default), resolve:
-
-    - status de merge: existe PR com state=MERGED apontando essa branch?
-    - PR aberta: existe PR com state=OPEN apontando essa branch?
-    - autoria/idade: primeiro commit único da branch (vs a default) = quem
-      criou/quando (aproximado); último commit = quem atualizou por
-      último/quando
-    - stale: último commit mais antigo que --stale-days (default: 90)
-
-  Resolução do repo (nessa ordem): argumento posicional (org/repo ou URL);
-  senão, detecta pelo diretório atual (se for um repo git com remote
-  GitHub); senão, pergunta interativamente.
-
-  100% via API remota (gh) - nunca faz fetch/clone/leitura de objetos git
-  locais.
-
-Opções:
-  --delete         apaga (com confirmação) as branches candidatas encontradas
-  --yes, -y        junto com --delete, não pede confirmação por branch
-  --stale-days N   idade em dias do último commit acima da qual marca "stale" (default: 90)
-  --only-merged    mostra/considera só branches mergeadas
-  --only-stale     mostra/considera só branches stale
-  --no-color       desabilita cores
-  --json           array JSON por branch (exige jq)
-  -h               mostra esta ajuda
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "$_script_dir/README.md"
+  else
+    cat "$_script_dir/README.md"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do

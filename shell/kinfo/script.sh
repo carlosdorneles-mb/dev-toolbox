@@ -6,25 +6,11 @@
 # Uso: kinfo <ambiente> [nome-do-app]
 # Uso: kinfo -h | --help
 _dtb_help_kinfo() {
-  cat <<'EOF'
-kinfo - mostra detalhes de um deployment/pod no Kubernetes
-
-Uso:
-  kinfo <ambiente> [nome-do-app]
-
-Descrição:
-  Verifica credenciais/conectividade do cluster ("kubectl cluster-info")
-  antes de qualquer coisa. Mostra namespace, env, versão e quem/quando
-  fez o último deploy. Com gum instalado e o nome do app omitido, abre
-  um seletor com os deployments do namespace.
-
-Opções:
-  <ambiente>     namespace do Kubernetes (fallback: $K_ENV; sem os dois,
-                 com gum instalado pede via prompt "gum input")
-  [nome-do-app]  nome do deployment (fallback: $K_APP; sem os dois, abre
-                 seletor gum se instalado)
-  -h             mostra esta ajuda
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "{{ROOT}}/shell/kinfo/README.md"
+  else
+    cat "{{ROOT}}/shell/kinfo/README.md"
+  fi
 }
 
 # espera um PID em background mostrando um spinner (gum so "vigia" um

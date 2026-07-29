@@ -37,7 +37,6 @@ pra pular. Passos em sequência:
 
 ## Requisitos
 
-- **Obrigatório:** `bash`/`zsh`, `sudo`.
 - **Linux:** `systemctl`, `NetworkManager` (`nmcli`), `resolvectl`.
 - **macOS:** `networksetup`, `dscacheutil`, `killall`.
 - **Opcional:** `stagentd` (Netskope, Linux) - só é reiniciado se presente

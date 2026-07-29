@@ -102,14 +102,8 @@ interativo (nunca em saída redirecionada/pipada, mesmo com cor).
 
 ## Requisitos
 
-- **Obrigatório:** `git` (uso local do repo) e `bash`.
-- **Opcional:** `gh` CLI autenticado + `jq` (usado só pra parsear a saída do
-  `gh`). Sem os dois, `git chain` funciona igual, mostrando só a hierarquia
-  local de branches (sem número/status de PR). Se `gh` estiver ausente, o
-  script pula essas chamadas e nunca invoca `jq` - por isso os dois são
-  opcionais juntos, não um sem o outro.
-- **`--json` exige `jq`** (não é mais opcional nesse modo específico) - sem
-  ele o script sai com erro antes de resolver a cadeia.
+`--json` exige `jq` (sai com erro antes de resolver a cadeia se faltar) -
+diferente do resto do comando, onde `gh`+`jq` são opcionais (ver acima).
 
 ## Exemplos
 

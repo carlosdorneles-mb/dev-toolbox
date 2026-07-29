@@ -107,9 +107,3 @@ $ git check-local-branches --json
 Reaproveita `git/chain/lib/` (`provider.sh`, `git.sh`) pra resolver a
 branch raiz e consultar PR via `gh`+`jq` - mesma dependência opcional do
 `git chain` (funciona sem, só perde o método 3).
-
-`gum` é obrigatório em terminal interativo fora de `--json` - usado no
-spinner de carregamento (`gum spin`) e, sem `--yes`, na
-seleção/confirmação do `--delete` (`gum choose` + `gum confirm`), sem
-fallback pra nenhum dos dois. `--json`/pipe e `--delete --yes` nunca
-chegam a precisar dele.

@@ -8,29 +8,11 @@
 # Uso: fix-network [--skip-ipv6] [--skip-dns]
 # Uso: fix-network -h | --help
 _dtb_help_fix_network() {
-  cat <<'EOF'
-fix-network - ajusta a rede em caso de instabilidade de conexão
-
-Uso:
-  fix-network [--skip-ipv6] [--skip-dns]
-
-Descrição:
-  1. Desativa IPv6 nas conexões de rede (--skip-ipv6 pula)
-     - Linux: perfis salvos do NetworkManager (nmcli)
-     - macOS: serviços de rede (networksetup -setv6off)
-  2. Limpa o cache de DNS (--skip-dns pula)
-     - Linux: 'resolvectl flush-caches'
-     - macOS: 'dscacheutil -flushcache' + 'killall -HUP mDNSResponder'
-  3. Reinicia o NetworkManager (só Linux - sem equivalente confiável no
-     macOS, passo pulado lá)
-  4. Reinicia o Netskope/stagentd, se instalado/habilitado (só Linux -
-     sem nome de serviço launchd confiável no macOS, passo pulado lá)
-
-Opções:
-  --skip-ipv6   pula o passo 1 (desativação de IPv6)
-  --skip-dns    pula o passo 2 (limpeza de cache DNS)
-  -h            mostra esta ajuda
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "{{ROOT}}/shell/fix-network/README.md"
+  else
+    cat "{{ROOT}}/shell/fix-network/README.md"
+  fi
 }
 
 fix-network() {

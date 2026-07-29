@@ -85,24 +85,11 @@ _dtb_aliases_collect() {
 # Uso: aliases [-r|--run] [--only-dev-toolbox]
 # Uso: aliases -h | --help
 _dtb_help_aliases() {
-  cat <<'EOF'
-aliases - lista todos os aliases de shell e git numa tabela
-
-Uso:
-  aliases [-r|--run] [--only-dev-toolbox]
-
-Descrição:
-  Lista todos os aliases de shell e git numa tabela (TIPO, NOME, FONTE,
-  COMANDO), indicando se vieram do dev-toolbox ou de outra fonte
-  (~/.bashrc, ~/.zshrc, ~/.gitconfig etc).
-
-Opções:
-  -r, --run             abre um menu gum (NOME + COMANDO) pra escolher um
-                        alias e executá-lo na hora
-  --only-dev-toolbox    mostra só os aliases com FONTE=dev-toolbox
-                        (combina com -r/--run)
-  -h                    mostra esta ajuda
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "{{ROOT}}/shell/aliases/README.md"
+  else
+    cat "{{ROOT}}/shell/aliases/README.md"
+  fi
 }
 
 aliases() {

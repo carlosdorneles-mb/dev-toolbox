@@ -50,11 +50,8 @@ tabela). ESC cancela sem executar nada. Requer `gum` instalado (ver
 Filtra a tabela (ou o menu do `-r`/`--run`) só pros aliases com
 FONTE=dev-toolbox, escondendo os de `~/.bashrc`/`~/.zshrc`/`~/.gitconfig`.
 
-## Requisitos
-
-Nenhuma dependência externa pra listagem - só `bash`/`zsh`, `awk` e `git`
-(esse último só pra listar os aliases de git; sem ele, a tabela sai só com
-os de shell). O `-r`/`--run` precisa de `gum` instalado.
+Sem `git` instalado, a tabela sai só com os aliases de shell (linhas `git`
+somem).
 
 ## Exemplo
 

@@ -14,68 +14,11 @@ yes_mode=0
 json_mode=0
 
 _dtb_help_check_local_branches() {
-  cat <<'EOF'
-git check-local-branches - lista branches locais já mergeadas no remote (origin por padrão)
-
-Uso:
-  git check-local-branches [--delete [--yes]] [--no-fetch] [--no-color] [--json]
-
-Descrição:
-  Pra cada branch local (exceto a raiz main/master), verifica se o
-  conteúdo dela já foi integrado na branch raiz do remote, por 3 métodos
-  (qualquer um confirma merge):
-
-    1. ancestor       - branch é ancestral direto da raiz (merge normal,
-                        merge --ff-only, ou merge commit preservando
-                        histórico)
-    2. sem diff local - "git cherry" mostra que todo commit da branch já
-                        tem equivalente (mesmo patch-id) na raiz - cobre
-                        merge via rebase que reaplica commit a commit
-    3. PR merged      - PR da branch (via "gh") está com state=MERGED -
-                        único jeito confiável de detectar squash merge
-                        (1 commit novo na raiz, sem ancestral nem patch-id
-                        batendo com nenhum commit da branch)
-
-  Sem "gh"/"jq" instalados (ou sem login), o método 3 é pulado - branch
-  squash-mergeada pode aparecer como "não mergeada" nesse caso (avisa 1x
-  em stderr).
-
-  Branch com upstream remoto sumido ("git branch -vv" mostra "[gone]") é
-  sinal extra, mostrado mas não usado sozinho pra decidir - só reforça o
-  resultado dos 3 métodos acima.
-
-  --delete remove (git branch -D) branches locais - sem --yes, mostra
-  TODAS (mergeadas ou não) num seletor "gum choose --no-limit" (espaço
-  marca, enter confirma); depois lista as escolhidas e confirma via
-  "gum confirm" antes de apagar. Exige terminal interativo e "gum"
-  instalado, sem fallback. --yes é mais conservador: pula seleção e
-  confirmação, mas só apaga as mergeadas (não precisa de "gum"). Nunca
-  deleta a branch raiz nem a branch com checkout no momento (protegida
-  pelo próprio git).
-
-Opções:
-  --delete     apaga branches locais (seleção via "gum" - --yes restringe
-               às mergeadas, sem seleção/confirmação)
-  --yes, -y    junto com --delete, não pede confirmação por branch
-  --no-fetch   pula o "git fetch" antes de comparar (usa o que já está
-               local - mais rápido, pode estar desatualizado)
-  --no-color   desabilita cores
-  --json       array JSON com {name, merged, reasons, gone} por branch
-               (exige "jq")
-  -h           mostra esta ajuda
-
-Exemplos:
-  $ git check-local-branches
-  STATUS  BRANCH                                       MOTIVO       ÚLTIMO COMMIT  DEFASAGEM        NOTA
-  MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged]  3 weeks ago    em dia           upstream sumiu
-  MERGED  chore/bump-deps                              [ancestor]   2 months ago   em dia
-  -       feat/promotions-autonomous-process            -            2 days ago     12 commits atrás  branch atual
-
-  $ git check-local-branches --delete
-  MERGED   fix/promotions-mail-push-campaign-exclusion   [PR merged]
-  # abre gum choose - espaço marca, ENTER confirma, depois gum confirm
-  Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
-EOF
+  if command -v glow >/dev/null 2>&1; then
+    glow -w 0 "$_script_dir/README.md"
+  else
+    cat "$_script_dir/README.md"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -157,6 +100,17 @@ for b in "${local_branches[@]}"; do
   [[ "$b" == "$root_branch" ]] && continue
   results_name+=("$b")
 done
+
+if (( ${#results_name[@]} == 0 )); then
+  if (( json_mode )); then
+    echo '[]'
+  elif (( is_tty )) && command -v gum &>/dev/null; then
+    gum log -l info "nenhuma branch local encontrada (além da raiz '$root_branch')"
+  else
+    echo "nenhuma branch local encontrada (além da raiz '$root_branch')" >&2
+  fi
+  exit 0
+fi
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT

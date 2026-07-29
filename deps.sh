@@ -30,7 +30,7 @@ CHECK_ONLY=0
 DEPS=(
   "jq|1.6|jq --version"
   "gum|0.13.0|gum --version"
-  "glow|1.5.0|glow --version"
+  "glow|2.0.0|glow --version"
   "gh|2.0.0|gh --version"
 )
 
