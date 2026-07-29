@@ -46,16 +46,33 @@ locais, roda de qualquer diretório.
 
 ### Deleção
 
-`--delete` apaga as branches candidatas: por padrão, mergeadas **ou**
-stale sem PR aberta (união dos dois grupos). `--only-merged`/`--only-stale`
-restringem a candidatura a só um dos grupos. Sem `--yes`, a seleção usa
-`gum choose --no-limit` (espaço marca, enter confirma) seguido de
-`gum confirm` pra confirmar a deleção (antes lista as escolhidas) -
-exige terminal interativo e `gum` instalado, sem fallback (erro com
-instrução de instalação se faltar qualquer um dos dois). `--yes`/`-y`
-pula seleção/confirmação e apaga
-todas de uma vez, sem precisar de `gum`. Branch default e branches
-`protected` nunca entram como candidatas.
+`--delete` apaga as branches **candidatas**. Uma branch só vira candidata
+se **não** for `protected`/default **e** atender pelo menos um destes dois
+critérios:
+
+1. **mergeada** - existe PR com `state=MERGED` apontando essa branch;
+2. **stale sem PR aberta** - `age_days > --stale-days` (default 90) **e**
+   não existe PR `state=OPEN` apontando essa branch.
+
+É união dos dois grupos por padrão. `--only-merged`/`--only-stale`
+restringem a candidatura a só um dos grupos (mas os critérios acima
+continuam valendo dentro do grupo escolhido) - ou seja:
+
+- `--delete --only-merged`: só apaga mergeadas. Stale (sem PR) fica de
+  fora, mesmo que passasse no critério 2.
+- `--delete --only-stale`: só considera branches stale, e dentro delas
+  só apaga as sem PR aberta - stale com PR aberta continua fora, e
+  mergeada-não-stale também fica fora.
+
+Branch com PR aberta **nunca** é candidata, mesmo se stale.
+
+`--yes`/`-y` **não muda quem é candidata** - só pula a etapa de
+seleção/confirmação e apaga todas as candidatas encontradas de uma vez,
+sem precisar de `gum`. Sem `--yes`, a seleção usa `gum choose --no-limit`
+(espaço marca, enter confirma) seguido de `gum confirm` pra confirmar a
+deleção (antes lista as escolhidas) - exige terminal interativo e `gum`
+instalado, sem fallback (erro com instrução de instalação se faltar
+qualquer um dos dois).
 
 ## Opções
 

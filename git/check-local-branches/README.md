@@ -8,7 +8,7 @@ opção de apagar as encontradas.
 ## Uso
 
 ```bash
-git check-local-branches [--delete [--yes]] [--no-fetch] [--no-color] [--json]
+git check-local-branches [--delete [--yes]] [--only-merged] [--only-stale] [--stale-days N] [--no-fetch] [--no-color] [--json]
 ```
 
 ## Descrição
@@ -39,16 +39,39 @@ sozinho pra decidir merge, só reforça o resultado dos 3 métodos acima.
 saber se uma branch não-mergeada só está velha ou já ficou pra trás de
 verdade.
 
-`--delete` remove (`git branch -D`) branches locais - sem `--yes`, mostra
-**todas** (mergeadas ou não) num seletor `gum choose --no-limit` (espaço
-marca, enter confirma); depois lista as escolhidas e confirma via
-`gum confirm` antes de apagar de fato. Exige terminal interativo e `gum`
-instalado, sem fallback (erro com instrução de instalação se faltar
-qualquer um dos dois). `--yes`/`-y` é mais conservador: pula
-seleção/confirmação, mas só apaga as **mergeadas** (nunca precisa de
-`gum`) - decisão de apagar uma não-mergeada exige revisão humana via o
-seletor. Nunca deleta a branch raiz nem a branch com checkout no momento
-(protegida pelo próprio git contra deleção).
+**stale**: idade calculada pela data do último commit da branch
+(`git log -1 --format=%ct`) - marca `⚠ stale` na coluna `NOTA` quando
+maior que `--stale-days` (default: 90), independente de estar mergeada
+ou não. `--only-merged`/`--only-stale` filtram exibição e candidatos de
+`--delete` pro respectivo critério (AND quando os dois são passados
+juntos - só sobra quem for mergeada **e** stale ao mesmo tempo).
+
+### Deleção
+
+`--delete` remove (`git branch -D`) branches locais. Sem `--yes`, mostra
+**todas as candidatas** (já filtradas por `--only-merged`/`--only-stale`,
+se passados) num seletor `gum choose --no-limit` (espaço marca, enter
+confirma); depois lista as escolhidas e confirma via `gum confirm` antes
+de apagar de fato. Exige terminal interativo e `gum` instalado, sem
+fallback (erro com instrução de instalação se faltar qualquer um dos
+dois).
+
+`--yes`/`-y` pula seleção/confirmação e apaga direto, mas só as
+consideradas **seguras** - critério muda conforme as flags:
+
+| Flags usadas junto com `--delete --yes` | O que é "seguro" (apagado sem revisão) |
+|---|---|
+| nenhuma, ou `--only-merged` | só **mergeada** |
+| `--only-stale` | **mergeada OU stale** (o pedido explícito de `--only-stale` habilita stale como critério seguro também) |
+| `--only-merged --only-stale` | só quem for **mergeada e stale ao mesmo tempo** (herda o AND da filtragem acima) |
+
+Ou seja: `--delete --yes` sozinho nunca apaga stale-não-mergeada -
+precisa passar `--only-stale` explicitamente pra isso entrar no critério
+seguro. Sem `--yes`, qualquer candidata (mergeada, stale, ou nenhuma das
+duas) aparece no seletor `gum choose` pra escolha manual - a decisão de
+apagar uma branch fora do critério seguro sempre passa por revisão
+humana ali. Nunca deleta a branch raiz nem a branch com checkout no
+momento (protegida pelo próprio git contra deleção).
 
 Enquanto verifica (fetch + consulta PR por branch), mostra um spinner
 via `gum spin` com o texto "verificando branches locais..." (só em
@@ -62,11 +85,14 @@ estar desatualizado).
 
 | Flag | Efeito |
 |---|---|
-| `--delete` | mostra todas as branches locais num seletor `gum` pra apagar (obrigatório sem `--yes`) |
-| `--yes`, `-y` | junto com `--delete`, apaga direto só as mergeadas, sem seleção/confirmação |
+| `--delete` | mostra todas as branches locais (filtradas pelas flags acima) num seletor `gum` pra apagar (obrigatório sem `--yes`) |
+| `--yes`, `-y` | junto com `--delete`, apaga direto as "seguras" sem seleção/confirmação - mergeadas sempre; +stale também se `--only-stale` for passado (ver tabela em [Deleção](#deleção)) |
+| `--only-merged` | mostra/considera só branches mergeadas |
+| `--only-stale` | mostra/considera só branches stale |
+| `--stale-days N` | idade em dias do último commit acima da qual marca "stale" (default: 90) |
 | `--no-fetch` | pula o `git fetch` antes de comparar |
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
-| `--json` | array JSON com `{name, merged, reasons, gone}` por branch (exige `jq`) |
+| `--json` | array JSON com `{name, merged, reasons, gone, age_days, stale}` por branch (exige `jq`) |
 | `-h` | mostra a ajuda embutida |
 
 ## Exemplos
@@ -98,10 +124,27 @@ Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 $ git check-local-branches --json
 [
   {"name": "fix/promotions-mail-push-campaign-exclusion", "merged": true,
-   "reasons": ["PR merged"], "gone": true},
+   "reasons": ["PR merged"], "gone": true, "age_days": 21, "stale": false},
   {"name": "feat/promotions-autonomous-process", "merged": false,
-   "reasons": [], "gone": false}
+   "reasons": [], "gone": false, "age_days": 2, "stale": false}
 ]
+
+$ git check-local-branches --only-stale --stale-days 30
+STATUS  BRANCH               MOTIVO  ÚLTIMO COMMIT  DEFASAGEM  NOTA
+-       chore/old-experiment  -       4 months ago   3 commits atrás  ⚠ stale
+
+$ git check-local-branches --delete --yes
+# sem --only-stale: "seguro" = só mergeada. chore/old-experiment (stale,
+# não mergeada) NÃO é apagada mesmo aparecendo como stale na listagem acima.
+STATUS  BRANCH                                       MOTIVO
+MERGED  fix/promotions-mail-push-campaign-exclusion  [PR merged] (upstream sumiu)
+Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
+
+$ git check-local-branches --delete --yes --only-stale --stale-days 30
+# com --only-stale: "seguro" passa a incluir stale também - agora apaga.
+STATUS  BRANCH                MOTIVO
+-       chore/old-experiment  [stale]
+Deleted branch chore/old-experiment (was a1b2c3d).
 ```
 
 ## Dependências

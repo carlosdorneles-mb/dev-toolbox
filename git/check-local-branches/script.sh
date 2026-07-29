@@ -12,6 +12,9 @@ no_fetch=0
 delete_mode=0
 yes_mode=0
 json_mode=0
+only_merged=0
+only_stale=0
+stale_days=90
 
 _dtb_help_check_local_branches() {
   if command -v glow >/dev/null 2>&1; then
@@ -29,6 +32,12 @@ while [[ $# -gt 0 ]]; do
     --delete) delete_mode=1 ;;
     --yes|-y) yes_mode=1 ;;
     --json) json_mode=1 ;;
+    --only-merged) only_merged=1 ;;
+    --only-stale) only_stale=1 ;;
+    --stale-days)
+      shift
+      stale_days="$1"
+      ;;
     *)
       echo "erro: opcao desconhecida '$1'" >&2
       exit 1
@@ -39,6 +48,11 @@ done
 
 if (( json_mode )) && ! command -v jq &>/dev/null; then
   echo "erro: --json exige 'jq' instalado" >&2
+  exit 1
+fi
+
+if ! [[ "$stale_days" =~ ^[0-9]+$ ]]; then
+  echo "erro: --stale-days precisa ser um número inteiro, recebido '$stale_days'" >&2
   exit 1
 fi
 
@@ -185,11 +199,30 @@ done
 rm -rf "$tmp_dir"
 trap - EXIT
 
+now=$(date +%s)
+results_age_days=()
+results_stale=()
+for i in "${!results_name[@]}"; do
+  b="${results_name[$i]}"
+  epoch="$(git log -1 --format=%ct "$b" 2>/dev/null)"
+  if [[ -n "$epoch" ]]; then
+    age="$(( (now - epoch) / 86400 ))"
+  else
+    age=""
+  fi
+  results_age_days+=("$age")
+  stale=0
+  [[ -n "$age" ]] && (( age > stale_days )) && stale=1
+  results_stale+=("$stale")
+done
+
 (( checking_msg )) && printf -- "\r\033[2K" >&2
 
 if (( json_mode )); then
   json_items=()
   for i in "${!results_name[@]}"; do
+    (( only_merged )) && (( ! results_merged[i] )) && continue
+    (( only_stale )) && (( ! results_stale[i] )) && continue
     reasons_json="[]"
     [[ -n "${results_reasons[$i]}" ]] && reasons_json=$(jq -R 'split(",")' <<< "${results_reasons[$i]}")
     json_items+=("$(jq -n \
@@ -197,7 +230,11 @@ if (( json_mode )); then
       --argjson merged "$( (( results_merged[i] )) && echo true || echo false )" \
       --argjson reasons "$reasons_json" \
       --argjson gone "$( (( results_gone[i] )) && echo true || echo false )" \
-      '{name: $name, merged: $merged, reasons: $reasons, gone: $gone}')")
+      --arg age_days "${results_age_days[$i]}" \
+      --argjson stale "$( (( results_stale[i] )) && echo true || echo false )" \
+      '{name: $name, merged: $merged, reasons: $reasons, gone: $gone,
+        age_days: ($age_days | if . == "" then null else (. | tonumber) end),
+        stale: $stale}')")
   done
   printf '%s\n' "${json_items[@]}" | jq -s '.'
   exit 0
@@ -206,6 +243,8 @@ fi
 any_deletable=0
 table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tDEFASAGEM\tNOTA\n')"
 for i in "${!results_name[@]}"; do
+  (( only_merged )) && (( ! results_merged[i] )) && continue
+  (( only_stale )) && (( ! results_stale[i] )) && continue
   b="${results_name[$i]}"
   [[ "$b" != "$real_current" ]] && any_deletable=1
 
@@ -222,7 +261,8 @@ for i in "${!results_name[@]}"; do
   fi
 
   nota=""
-  (( results_gone[i] )) && nota="⚠ upstream sumiu"
+  (( results_stale[i] )) && nota="⚠ stale"
+  (( results_gone[i] )) && nota="${nota:+$nota, }⚠ upstream sumiu"
   [[ "$b" == "$real_current" ]] && nota="${nota:+$nota, }branch atual"
 
   if (( results_merged[i] )); then
@@ -237,14 +277,17 @@ done
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! delete_mode )) && (( is_tty )); then
-  dtb_hints_flags=("--json" "--no-fetch")
+  dtb_hints_flags=("--json" "--no-fetch" "--only-merged" "--only-stale" "--stale-days N")
   dtb_hints_descs=(
     "saída em JSON pra script/pipe"
     "pula o git fetch antes de comparar"
+    "mostra só as branches mergeadas"
+    "mostra só as branches stale"
+    "muda o limite de dias pra marcar stale (default: 90)"
   )
   if (( any_deletable )); then
     dtb_hints_flags+=("--delete")
-    dtb_hints_descs+=("escolhe quais apagar (--yes apaga só as mergeadas)")
+    dtb_hints_descs+=("escolhe quais apagar (--yes apaga mergeadas, +stale com --only-stale)")
   fi
   dtb_print_random_hint "git check-local-branches" "$DIM" "$RESET"
 fi
@@ -253,12 +296,16 @@ if (( delete_mode )); then
   echo
 
   # candidatos = toda branch local exceto raiz (ja fora de results_name) e a
-  # atual (protegida). --yes so apaga as mergeadas (sem revisao humana, fica
-  # restrito ao criterio seguro); o picker interativo mostra todas - a
-  # decisao de apagar uma nao-mergeada fica por conta de quem escolhe.
+  # atual (protegida). --yes so apaga as mergeadas por padrao (sem revisao
+  # humana, fica restrito ao criterio seguro); com --only-stale, stale
+  # tambem vira criterio seguro (pedido explicito de quem chamou o script).
+  # o picker interativo mostra todas - a decisao de apagar qualquer outra
+  # fica por conta de quem escolhe.
   candidates=()
   safe_candidates=()
   for i in "${!results_name[@]}"; do
+    (( only_merged )) && (( ! results_merged[i] )) && continue
+    (( only_stale )) && (( ! results_stale[i] )) && continue
     b="${results_name[$i]}"
     if [[ "$b" == "$real_current" ]]; then
       if (( is_tty )) && command -v gum &>/dev/null; then
@@ -268,14 +315,21 @@ if (( delete_mode )); then
       fi
       continue
     fi
+
+    is_safe=0
+    (( results_merged[i] )) && is_safe=1
+    (( only_stale )) && (( results_stale[i] )) && is_safe=1
+
     if (( results_merged[i] )); then
       tag="[${results_reasons[$i]}]"
-      (( results_gone[i] )) && tag="$tag (upstream sumiu)"
-      safe_candidates+=("$b"$'\t'"$tag")
+    elif (( results_stale[i] )); then
+      tag="[stale]"
     else
       tag="[não mergeada]"
-      (( results_gone[i] )) && tag="$tag (upstream sumiu)"
     fi
+    (( results_gone[i] )) && tag="$tag (upstream sumiu)"
+
+    (( is_safe )) && safe_candidates+=("$b"$'\t'"$tag")
     candidates+=("$b"$'\t'"$tag")
   done
 
@@ -288,10 +342,12 @@ if (( delete_mode )); then
     fi
   elif (( yes_mode )); then
     if (( ${#safe_candidates[@]} == 0 )); then
+      safe_desc="mergeadas"
+      (( only_stale )) && safe_desc="mergeadas ou stale"
       if (( is_tty )) && command -v gum &>/dev/null; then
-        gum log -l info "nenhuma branch mergeada pra apagar (--yes só apaga mergeadas)"
+        gum log -l info "nenhuma branch $safe_desc pra apagar (--yes só apaga $safe_desc)"
       else
-        echo "nenhuma branch mergeada pra apagar (--yes só apaga mergeadas)" >&2
+        echo "nenhuma branch $safe_desc pra apagar (--yes só apaga $safe_desc)" >&2
       fi
     fi
     for c in "${safe_candidates[@]}"; do to_delete+=("${c%%$'\t'*}"); done
