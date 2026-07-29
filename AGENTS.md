@@ -104,10 +104,10 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
 ## Dependências externas (`deps.sh`)
 
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
-toolbox (hoje: `jq`, `gum`, `gh`) via `brew` (macOS) ou `apt-get`
+toolbox (hoje: `jq`, `gum`, `glow`, `gh`) via `brew` (macOS) ou `apt-get`
 (Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do próprio script -
-não existe arquivo de configuração externo pra isso. `jq` e `gum` são
-obrigatórios - instalados sem perguntar, e se a instalação falhar
+não existe arquivo de configuração externo pra isso. `jq`, `gum` e `glow`
+são obrigatórios - instalados sem perguntar, e se a instalação falhar
 `install.sh` aborta (`set -euo pipefail`, sem fallback degradado). `gh` é
 opcional - pede confirmação antes de instalar/atualizar; se o usuário
 recusar, `install.sh` segue normalmente.

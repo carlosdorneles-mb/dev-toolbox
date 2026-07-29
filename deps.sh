@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Verifica/instala dependências externas usadas pelos itens do dev-toolbox
-# (jq, gum, gh, ...). Detecta o que já está instalado e a versão;
+# (jq, gum, glow, gh, ...). Detecta o que já está instalado e a versão;
 # instala o que falta e atualiza o que estiver abaixo da versão mínima
-# exigida. jq e gum são obrigatórios (instalados sem perguntar, falha
+# exigida. jq, gum e glow são obrigatórios (instalados sem perguntar, falha
 # aborta o install.sh); gh é opcional (pede confirmação antes de
 # instalar/atualizar).
 #
@@ -30,6 +30,7 @@ CHECK_ONLY=0
 DEPS=(
   "jq|1.6|jq --version"
   "gum|0.13.0|gum --version"
+  "glow|1.5.0|glow --version"
   "gh|2.0.0|gh --version"
 )
 
@@ -104,7 +105,7 @@ _install_or_upgrade() {
         _add_gh_apt_repo "$sudo_cmd"
       fi
 
-      if [[ "$bin" == "gum" ]] && ! apt-cache show gum &>/dev/null; then
+      if [[ "$bin" == "gum" || "$bin" == "glow" ]] && ! apt-cache show "$bin" &>/dev/null; then
         if ! command -v curl &>/dev/null; then
           echo "${RED}✘${RESET} 'curl' é necessário pra adicionar o repositório do Charm (gum) - instale-o primeiro." >&2
           return 1
