@@ -4,6 +4,9 @@
 # Uso:
 #   ./install.sh                # instala/atualiza tudo (não interativo)
 #   ./install.sh --interactive  # deixa escolher quais itens instalar
+#   ./install.sh --update       # reaplica a seleção salva em .installed (+ itens novos do catalog), sem forçar tudo - usado pelo comando "update"
+#   ./install.sh -q | --quiet   # some junto com qualquer flag acima - silencia a saída informativa (erros continuam aparecendo)
+#   ./install.sh --skip-deps    # some junto com qualquer flag acima - pula a checagem/instalação de dependências (jq/gum/glow/gh)
 #
 # Idempotente - roda de novo a qualquer momento (ex: após "git pull") pra
 # sincronizar itens novos do catalog.json. A seleção feita no modo interativo
@@ -21,10 +24,28 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CATALOG="$ROOT/catalog.json"
 STATE_FILE="$ROOT/.installed"
 INTERACTIVE=0
-[[ "${1:-}" == "--interactive" ]] && INTERACTIVE=1
+UPDATE_MODE=0
+QUIET=0
+SKIP_DEPS=0
+for arg in "$@"; do
+  case "$arg" in
+    --interactive) INTERACTIVE=1 ;;
+    --update) UPDATE_MODE=1 ;;
+    -q|--quiet) QUIET=1 ;;
+    --skip-deps) SKIP_DEPS=1 ;;
+  esac
+done
 
-bash "$ROOT/deps.sh"
-echo ""
+_log() { (( QUIET )) && return; printf '%s\n' "$*"; }
+
+if (( SKIP_DEPS )); then
+  _log "${DIM}pulando checagem de dependências (--skip-deps)${RESET}"
+elif (( QUIET )); then
+  bash "$ROOT/deps.sh" >/dev/null
+else
+  bash "$ROOT/deps.sh"
+  echo ""
+fi
 
 mapfile -t ids < <(jq -r '.[].id' "$CATALOG")
 mapfile -t types < <(jq -r '.[].type' "$CATALOG")
@@ -32,13 +53,25 @@ mapfile -t paths < <(jq -r '.[].path' "$CATALOG")
 mapfile -t entries < <(jq -r '.[].entry' "$CATALOG")
 mapfile -t descs < <(jq -r '.[].description' "$CATALOG")
 
-# modo nao-interativo instala/atualiza TUDO, sempre - .installed so serve de
-# pre-selecao pro checklist do --interactive (respeita o que foi desmarcado
-# antes), nunca pra restringir uma rodada sem --interactive. Sem isso, um
-# item novo no catalog.json (ex: apos "git pull") nunca seria instalado sozinho
-# pra quem ja tinha um .installed de uma selecao anterior.
+# modo padrao (sem flag): instala/atualiza TUDO, sempre.
+# --update: reaproveita a selecao salva em .installed (respeita o que foi
+# desmarcado antes) e soma automaticamente qualquer item novo do catalog.json
+# que ainda nao apareca no arquivo - assim um item novo (ex: apos "git pull")
+# entra sozinho, mas um item desmarcado continua desmarcado.
+# --interactive: usa .installed so como pre-selecao pro checklist (abaixo).
 declare -A selected
 for id in "${ids[@]}"; do selected["$id"]=1; done
+
+if (( UPDATE_MODE )) && [[ -f "$STATE_FILE" ]]; then
+  selected=()
+  while read -r id; do
+    [[ -z "$id" ]] && continue
+    selected["$id"]=1
+  done < "$STATE_FILE"
+  for id in "${ids[@]}"; do
+    grep -qxF "$id" "$STATE_FILE" || selected["$id"]=1
+  done
+fi
 
 if (( INTERACTIVE )) && [[ -f "$STATE_FILE" ]]; then
   selected=()
@@ -96,7 +129,7 @@ if ! grep -qF "$GIT_CONFIG_GENERATED" "$HOME/.gitconfig" 2>/dev/null; then
   git config --global --add include.path "$GIT_CONFIG_GENERATED"
 fi
 
-echo "${GREEN}✔${RESET} git aliases ${GREEN}ok${RESET} ${DIM}-> $GIT_CONFIG_GENERATED (via include.path no ~/.gitconfig)${RESET}"
+_log "${GREEN}✔${RESET} git aliases ${GREEN}ok${RESET} ${DIM}-> $GIT_CONFIG_GENERATED (via include.path no ~/.gitconfig)${RESET}"
 
 # --- shell (bash + zsh) - concatena itens shell selecionados num unico
 # arquivo gerado (mesmo padrao do git acima). O .bashrc/.zshrc so sourca
@@ -122,21 +155,23 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     printf '\n[ -f "%s" ] && source "%s"\n' "$SHELL_CONFIG_GENERATED" "$SHELL_CONFIG_GENERATED" >> "$rc"
 done
 
-echo "${GREEN}✔${RESET} shell aliases ${GREEN}ok${RESET} ${DIM}-> $SHELL_CONFIG_GENERATED (sourced no ~/.bashrc/~/.zshrc)${RESET}"
+_log "${GREEN}✔${RESET} shell aliases ${GREEN}ok${RESET} ${DIM}-> $SHELL_CONFIG_GENERATED (sourced no ~/.bashrc/~/.zshrc)${RESET}"
 
-echo ""
-echo "${BOLD}Comandos instalados:${RESET}"
-echo "${DIM}git:${RESET}"
-for i in "${!ids[@]}"; do
-  [[ "${types[$i]}" == "git" && -n "${selected[${ids[$i]}]+x}" ]] || continue
-  printf "  %-15s %s\n" "git ${entries[$i]}" "${descs[$i]}"
-done
-echo "${DIM}shell:${RESET}"
-for i in "${!ids[@]}"; do
-  [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
-  printf "  %-15s %s\n" "${entries[$i]}" "${descs[$i]}"
-done
+if ! (( QUIET )); then
+  echo ""
+  echo "${BOLD}Comandos instalados:${RESET}"
+  echo "${DIM}git:${RESET}"
+  for i in "${!ids[@]}"; do
+    [[ "${types[$i]}" == "git" && -n "${selected[${ids[$i]}]+x}" ]] || continue
+    printf "  %-15s %s\n" "git ${entries[$i]}" "${descs[$i]}"
+  done
+  echo "${DIM}shell:${RESET}"
+  for i in "${!ids[@]}"; do
+    [[ "${types[$i]}" == "shell" && -n "${selected[${ids[$i]}]+x}" ]] || continue
+    printf "  %-15s %s\n" "${entries[$i]}" "${descs[$i]}"
+  done
+fi
 
-echo ""
-echo "${GREEN}${BOLD}✔ dev-toolbox instalado/atualizado.${RESET}"
-echo "${DIM}abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem.${RESET}"
+_log ""
+_log "${GREEN}${BOLD}✔ dev-toolbox instalado/atualizado.${RESET}"
+_log "${DIM}abra um novo shell (ou 'source ~/.zshrc') pra aliases de shell valerem.${RESET}"

@@ -44,16 +44,43 @@ if [[ -z "${_DTB_LOG_LOADED:-}" ]]; then
   # nunca via gum log - e cabecalho de secao, nao mensagem de log)
   dtb_log_banner() { echo -e "${_DTB_BOLD}$*${_DTB_RESET}"; }
 
-  # dtb_run_step "Titulo" <comando> [args...]  -> em terminal, spinner
-  # (gum, obrigatorio - ver checagem no topo do arquivo) com o titulo
-  # enquanto o comando roda, saida escondida (só aparece se falhar, via
-  # --show-error); sem terminal, dtb_log_step + comando com saida visivel
-  # de sempre. Uso: dtb_run_step "Atualizando X..." bash -c '...'
+  # dtb_run_step "Titulo" "Msg de sucesso" <comando> [args...]  -> em
+  # terminal, spinner (gum, obrigatorio - ver checagem no topo do arquivo)
+  # com o titulo enquanto o comando roda, saida escondida (só aparece se
+  # falhar, via --show-error); ao concluir com sucesso mostra "Msg de
+  # sucesso" (não o titulo - título é sempre no gerúndio, a mensagem de
+  # sucesso é o resultado); sem terminal, dtb_log_step + comando, mesma
+  # msg de sucesso/erro. Uso: dtb_run_step "Atualizando X..." "X atualizado." bash -c '...'
   dtb_run_step() {
-    local title="$1"; shift
+    local title="$1" done_msg="$2"; shift 2
     if (( _DTB_IS_TTY )); then
       if gum spin --spinner dot --title "$title" --show-error -- "$@"; then
-        dtb_log_ok "$title"
+        dtb_log_ok "$done_msg"
+      else
+        dtb_log_err "$title - falhou (ver saída acima)"
+        return 1
+      fi
+    else
+      dtb_log_step "$title"
+      if "$@"; then
+        dtb_log_ok "$done_msg"
+      else
+        dtb_log_err "$title - falhou"
+        return 1
+      fi
+    fi
+  }
+
+  # dtb_run_step_verbose "Titulo" <comando> [args...]  -> igual dtb_run_step,
+  # mas com --show-output em vez de --show-error (mensagens do próprio
+  # comando ficam visíveis mesmo em caso de sucesso, ex: "X já está
+  # atualizado") e sem mensagem de sucesso própria - o comando já comunica
+  # o resultado via sua própria saída; só loga em caso de falha
+  dtb_run_step_verbose() {
+    local title="$1"; shift
+    if (( _DTB_IS_TTY )); then
+      if gum spin --spinner dot --title "$title" --show-output -- "$@"; then
+        return 0
       else
         dtb_log_err "$title - falhou (ver saída acima)"
         return 1

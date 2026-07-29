@@ -18,14 +18,23 @@ dev-toolbox, pulando pacotes do sistema e demais ferramentas (não pede
 
 ## Descrição
 
-Pede a senha do `sudo` uma vez no início (`sudo -v`) e roda em sequência,
-cada bloco só se o binário correspondente existir na máquina
-(`command -v <bin>`):
+Em terminal interativo com `gum`, pergunta antes de pedir a senha do `sudo`
+(`gum confirm`) - se o usuário recusar, pula todos os blocos que exigem
+`apt`/`dpkg`/`systemctl` (mostra um aviso) e atualiza só as ferramentas de
+usuário (Homebrew, UV, Poetry, Mise, Flatpak, Snap, Aqua, Google Cloud SDK,
+Rustup, Pipx, extensões do GitHub CLI, Mac App Store). Sem terminal
+interativo ou sem `gum`, mantém o comportamento antigo: pede a senha direto
+(`sudo -v`), sem perguntar.
 
-- **dev-toolbox** - `git pull --ff-only` no próprio repo, depois roda
-  `install.sh` de novo (idempotente, pega novos aliases/scripts do
-  catalog.json mesmo sem mudança); se houver alterações locais não
-  commitadas o pull falha e o comando avisa e segue com o resto
+Cada bloco roda só se o binário correspondente existir na máquina
+(`command -v <bin>`), com spinner (`gum spin`) enquanto atualiza e uma
+mensagem de sucesso ou erro ao final:
+
+- **dev-toolbox** - roda o `bootstrap.sh` via `curl` (`DEV_TOOLBOX_DIR`
+  apontando pro próprio clone) com a flag `--update`, que faz `git pull` e
+  chama `install.sh --update` (reaplica a seleção salva em `.installed`,
+  somando item novo do catalog.json - não força tudo de novo); se falhar o
+  comando avisa e segue com o resto
 - **APT** (`apt update && apt upgrade`) - sempre roda, sem checagem prévia;
   o `apt update` dessa etapa é reaproveitado pelos blocos `--only-upgrade`
   mais abaixo (VS Code, Sublime, Podman, GitHub CLI), que não repetem o
@@ -35,7 +44,7 @@ cada bloco só se o binário correspondente existir na máquina
 - **Poetry** (`poetry self update`)
 - **Mise** (`mise self-update -y`)
 - **Flatpak** (`flatpak update -y`)
-- **Snap** (`snap refresh`)
+- **Snap** (`sudo snap refresh`)
 - **Aqua** (`aqua upa`)
 - **Google Cloud SDK** (`gcloud components update --quiet`)
 - **Rustup** (`rustup update`)
@@ -75,7 +84,11 @@ de pacote nativo:
   dessas ferramentas no Mac não é coberta por este comando.
 - **Multiplataforma independente de `apt`**: Homebrew, UV, Poetry, Mise,
   Rustup, Pipx, Google Cloud SDK e as extensões do GitHub CLI
-  (`gh extension upgrade --all`) rodam em qualquer SO onde o binário exista.
+  (`gh extension upgrade --all`) rodam em qualquer SO onde o binário exista -
+  são justamente os blocos que continuam rodando quando o usuário recusa dar
+  sudo (ver Descrição) - **Snap é exceção**: exige sudo mesmo sendo
+  multiplataforma, então é pulado junto com os blocos `apt`/`dpkg` se o
+  usuário recusar.
 - **Exclusivo do macOS**: Mac App Store via `mas upgrade` (requer `mas`
   instalado - sem CLI oficial da Apple pra isso).
 - Flatpak/Snap/Aqua são Linux-only na prática (`command -v` simplesmente não

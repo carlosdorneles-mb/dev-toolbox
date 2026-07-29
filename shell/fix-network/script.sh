@@ -52,13 +52,13 @@ fix-network() {
     dtb_log_skip "Pulando configuração de IPv6 (--skip-ipv6)."
   else
     if [[ "$os" == "macos" ]]; then
-      dtb_run_step "Desativando IPv6 nos serviços de rede (networksetup)..." bash -c '
+      dtb_run_step "Desativando IPv6 nos serviços de rede (networksetup)..." "IPv6 desativado nos serviços de rede." bash -c '
         networksetup -listallnetworkservices | tail -n +2 | while IFS= read -r service; do
           sudo networksetup -setv6off "$service" &>/dev/null
         done
       '
     else
-      dtb_run_step "Desativando IPv6 nos perfis de conexão salvos (nmcli)..." bash -c '
+      dtb_run_step "Desativando IPv6 nos perfis de conexão salvos (nmcli)..." "IPv6 desativado nos perfis de conexão salvos." bash -c '
         nmcli -t -f NAME connection show | while IFS= read -r connection; do
           sudo nmcli connection modify "$connection" ipv6.method ignore &>/dev/null
         done
@@ -71,20 +71,20 @@ fix-network() {
     dtb_log_skip "Pulando limpeza de cache DNS (--skip-dns)."
   else
     if [[ "$os" == "macos" ]]; then
-      dtb_run_step "Limpando cache de DNS..." bash -c 'sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder'
+      dtb_run_step "Limpando cache de DNS..." "Cache de DNS limpo." bash -c 'sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder'
     else
-      dtb_run_step "Limpando cache de DNS..." sudo resolvectl flush-caches
+      dtb_run_step "Limpando cache de DNS..." "Cache de DNS limpo." sudo resolvectl flush-caches
     fi
   fi
 
   # 3. Reinício de serviços essenciais (NetworkManager - Linux only, sem
   # equivalente direto no macOS)
   if [[ "$os" == "linux" ]]; then
-    dtb_run_step "Reiniciando NetworkManager..." sudo systemctl restart NetworkManager
+    dtb_run_step "Reiniciando NetworkManager..." "NetworkManager reiniciado." sudo systemctl restart NetworkManager
 
     # 4. Reinício do Netskope (stagentd - Linux only, sem nome de serviço
     # launchd confiável no macOS)
-    dtb_run_step "Aguardando estabilização da rede (5s) e reiniciando Netskope..." bash -c '
+    dtb_run_step "Aguardando estabilização da rede (5s) e reiniciando Netskope..." "Rede estabilizada e Netskope reiniciado (se presente)." bash -c '
       sleep 5
       if systemctl is-active --quiet stagentd.service || systemctl is-enabled --quiet stagentd.service; then
         sudo systemctl restart stagentd

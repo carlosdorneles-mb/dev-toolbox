@@ -13,6 +13,48 @@ _dtb_help_update() {
   fi
 }
 
+_dtb_update_devtoolbox() {
+  if ! curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh \
+    | DEV_TOOLBOX_DIR="{{ROOT}}" bash -s -- --update --quiet; then
+    echo "Falha ao atualizar dev-toolbox via bootstrap.sh." >&2
+    return 1
+  fi
+}
+
+_dtb_update_cursor() {
+  local cursor_url="https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest"
+  local cursor_etag_cache="/tmp/.dev-toolbox-cursor-etag"
+  local cursor_remote_etag
+  cursor_remote_etag="$(curl -fsSI "$cursor_url" | grep -i '^etag:' | tr -d '\r' | awk '{print $2}')"
+
+  if [[ -n "$cursor_remote_etag" ]] && [[ "$cursor_remote_etag" == "$(cat "$cursor_etag_cache" 2>/dev/null)" ]]; then
+    echo "Cursor já está atualizado."
+  else
+    local cursor_deb="/tmp/cursor.deb"
+    curl -fsSL "$cursor_url" -o "$cursor_deb" && sudo dpkg -i "$cursor_deb" && rm -f "$cursor_deb"
+    [[ -n "$cursor_remote_etag" ]] && echo "$cursor_remote_etag" > "$cursor_etag_cache"
+  fi
+}
+
+_dtb_update_docker_desktop() {
+  if docker desktop update -k 2>&1 | grep -q "is already the latest version"; then
+    echo "Docker Desktop já está atualizado."
+  else
+    echo "Atualização do Docker Desktop disponível. Baixando e instalando..."
+    local temp_deb="/tmp/docker-desktop-amd64.deb"
+    wget -q --show-progress -O "$temp_deb" "https://desktop.docker.com/linux/main/amd64/docker-desktop-amd64.deb?utm_source=docker&utm_medium=webreferral&utm_campaign=docs-driven-download-linux-amd64"
+
+    if [ -f "$temp_deb" ]; then
+      systemctl --user stop docker-desktop
+      sudo dpkg -i "$temp_deb" && rm "$temp_deb"
+      systemctl --user start docker-desktop
+    else
+      echo "Falha ao baixar o Docker Desktop." >&2
+      return 1
+    fi
+  fi
+}
+
 update() {
   local arg
   for arg in "$@"; do
@@ -37,9 +79,20 @@ update() {
     *) os="linux" ;;
   esac
 
+  local has_sudo=1
   if [[ "$only_dev_toolbox" -eq 0 ]]; then
-    echo "Este comando precisa de privilégios sudo pra executar (apt, dpkg, systemctl etc)." >&2
-    sudo -v
+    if [[ -t 1 ]] && command -v gum &>/dev/null; then
+      if gum confirm "Atualização completa precisa de privilégios sudo (apt, dpkg, systemctl etc). Informar a senha do sudo agora?"; then
+        sudo -v
+        has_sudo=1
+      else
+        has_sudo=0
+        dtb_log_skip "Sem sudo: pulando pacotes do sistema (apt/dpkg/systemctl) - só as ferramentas de usuário serão atualizadas."
+      fi
+    else
+      echo "Este comando precisa de privilégios sudo pra executar (apt, dpkg, systemctl etc)." >&2
+      sudo -v
+    fi
     echo ""
     dtb_log_banner "Iniciando atualização do sistema..."
   else
@@ -47,14 +100,9 @@ update() {
   fi
   echo ""
 
-  # dev-toolbox (git pull + re-instala, idempotente)
+  # dev-toolbox (via bootstrap.sh --update --quiet: git pull + reaplica seleção, idempotente)
   if [[ -d "{{ROOT}}/.git" ]]; then
-    dtb_log_step "Atualizando dev-toolbox..."
-    if git -C "{{ROOT}}" pull --ff-only; then
-      bash "{{ROOT}}/install.sh"
-    else
-      dtb_log_err "Falha ao atualizar dev-toolbox (git pull). Verifique alterações locais não commitadas."
-    fi
+    dtb_run_step "Atualizando dev-toolbox..." "dev-toolbox atualizado." bash -c "$(declare -f _dtb_update_devtoolbox); _dtb_update_devtoolbox"
   fi
 
   if [[ "$only_dev_toolbox" -eq 1 ]]; then
@@ -65,135 +113,108 @@ update() {
 
   # APT (Ubuntu/Debian - inexistente no macOS, onde o Homebrew abaixo cobre
   # tanto formulas quanto casks, incluindo os apps GUI checados mais abaixo)
-  if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-    dtb_run_step "Atualizando pacotes APT..." bash -c 'sudo apt update -y && sudo apt upgrade -y'
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
+    dtb_run_step "Atualizando pacotes APT..." "Pacotes APT atualizados." bash -c 'sudo apt update -y && sudo apt upgrade -y'
   fi
 
   # Homebrew
   if command -v brew &>/dev/null; then
-    dtb_run_step "Atualizando Homebrew..." bash -c 'brew update && brew upgrade'
+    dtb_run_step "Atualizando Homebrew..." "Homebrew atualizado." bash -c 'brew update && brew upgrade'
   fi
 
   # UV
   if command -v uv &>/dev/null; then
-    dtb_run_step "Atualizando UV..." uv self update
+    dtb_run_step "Atualizando UV..." "UV atualizado." uv self update
   fi
 
   # Poetry
   if command -v poetry &>/dev/null; then
-    dtb_run_step "Atualizando Poetry..." poetry self update
+    dtb_run_step "Atualizando Poetry..." "Poetry atualizado." poetry self update
   fi
 
   # Mise
   if command -v mise &>/dev/null; then
-    dtb_run_step "Atualizando Mise..." mise self-update -y
+    dtb_run_step "Atualizando Mise..." "Mise atualizado." mise self-update -y
   fi
 
   # Flatpak
   if command -v flatpak &>/dev/null; then
-    dtb_run_step "Atualizando pacotes Flatpak..." flatpak update -y
+    dtb_run_step "Atualizando pacotes Flatpak..." "Pacotes Flatpak atualizados." flatpak update -y
   fi
 
-  # Snap
-  if command -v snap &>/dev/null; then
-    dtb_run_step "Atualizando pacotes Snap..." snap refresh
+  # Snap (exige sudo)
+  if [[ "$has_sudo" -eq 1 ]] && command -v snap &>/dev/null; then
+    dtb_run_step "Atualizando pacotes Snap..." "Pacotes Snap atualizados." sudo snap refresh
   fi
 
   # Aqua
   if command -v aqua &>/dev/null; then
-    dtb_run_step "Atualizando Aqua..." aqua upa
+    dtb_run_step "Atualizando Aqua..." "Aqua atualizado." aqua upa
   fi
 
   # Google Cloud SDK
   if command -v gcloud &>/dev/null; then
-    dtb_run_step "Atualizando Google Cloud SDK..." gcloud components update --quiet
+    dtb_run_step "Atualizando Google Cloud SDK..." "Google Cloud SDK atualizado." gcloud components update --quiet
   fi
 
   # Rustup
   if command -v rustup &>/dev/null; then
-    dtb_run_step "Atualizando Rustup..." rustup update
+    dtb_run_step "Atualizando Rustup..." "Rustup atualizado." rustup update
   fi
 
   # Pipx
   if command -v pipx &>/dev/null; then
-    dtb_run_step "Atualizando pacotes Pipx..." pipx upgrade-all
+    dtb_run_step "Atualizando pacotes Pipx..." "Pacotes Pipx atualizados." pipx upgrade-all
   fi
 
   # Cursor (deb direto da API do Cursor - só faz sentido no linux; no
   # macOS, se instalado via brew cask, ja foi coberto pelo bloco Homebrew
   # acima)
-  if [[ "$os" == "linux" ]] && command -v cursor &>/dev/null; then
-    dtb_log_step "Verificando atualizações do Cursor..."
-    local cursor_url="https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest"
-    local cursor_etag_cache="/tmp/.dev-toolbox-cursor-etag"
-    local cursor_remote_etag
-    cursor_remote_etag="$(curl -fsSI "$cursor_url" | grep -i '^etag:' | tr -d '\r' | awk '{print $2}')"
-
-    if [[ -n "$cursor_remote_etag" ]] && [[ "$cursor_remote_etag" == "$(cat "$cursor_etag_cache" 2>/dev/null)" ]]; then
-      dtb_log_ok "Cursor já está atualizado."
-    else
-      local cursor_deb="/tmp/cursor.deb"
-      curl -fsSL "$cursor_url" -o "$cursor_deb" && sudo dpkg -i "$cursor_deb" && rm -f "$cursor_deb"
-      [[ -n "$cursor_remote_etag" ]] && echo "$cursor_remote_etag" > "$cursor_etag_cache"
-    fi
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v cursor &>/dev/null; then
+    dtb_run_step_verbose "Verificando atualizações do Cursor..." bash -c "$(declare -f _dtb_update_cursor); _dtb_update_cursor"
   fi
 
   # VS Code (pacote apt - no macOS, se instalado via brew cask, já foi
   # coberto pelo bloco Homebrew acima)
-  if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v code &>/dev/null; then
-    dtb_run_step "Atualizando VS Code..." sudo apt install --only-upgrade code
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v code &>/dev/null; then
+    dtb_run_step "Atualizando VS Code..." "VS Code atualizado." sudo apt install --only-upgrade code
   fi
 
   # Sublime Text (idem VS Code)
-  if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v subl &>/dev/null; then
-    dtb_run_step "Atualizando Sublime Text..." sudo apt install --only-upgrade sublime-text
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v subl &>/dev/null; then
+    dtb_run_step "Atualizando Sublime Text..." "Sublime Text atualizado." sudo apt install --only-upgrade sublime-text
   fi
 
   # Podman (idem VS Code)
-  if [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v podman &>/dev/null; then
-    dtb_run_step "Atualizando Podman..." sudo apt install --only-upgrade podman
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null && command -v podman &>/dev/null; then
+    dtb_run_step "Atualizando Podman..." "Podman atualizado." sudo apt install --only-upgrade podman
   fi
 
-  # GitHub CLI - binário via apt só no linux; extensões (`gh extension`) são
-  # multiplataforma, então rodam em qualquer OS onde `gh` existir
+  # GitHub CLI - binário via apt só no linux (exige sudo); extensões
+  # (`gh extension`) são multiplataforma e não exigem sudo, então rodam
+  # mesmo sem privilégios
   if command -v gh &>/dev/null; then
-    if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-      dtb_run_step "Atualizando GitHub CLI..." sudo apt install --only-upgrade gh
+    if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
+      dtb_run_step "Atualizando GitHub CLI..." "GitHub CLI atualizado." sudo apt install --only-upgrade gh
     fi
-    dtb_run_step "Atualizando extensões do GitHub CLI..." gh extension upgrade --all
+    dtb_run_step "Atualizando extensões do GitHub CLI..." "Extensões do GitHub CLI atualizadas." gh extension upgrade --all
   fi
 
   # Docker Desktop (baixa/instala .deb + systemctl - mecanismo exclusivo do
   # linux; no macOS, se instalado via brew cask, já foi coberto pelo bloco
   # Homebrew acima)
-  if [[ "$os" == "linux" ]] && command -v docker &>/dev/null; then
-    dtb_log_step "Verificando atualizações do Docker Desktop..."
-    if docker desktop update -k 2>&1 | grep -q "is already the latest version"; then
-      dtb_log_ok "Docker Desktop já está atualizado."
-    else
-      dtb_log_warn "Atualização do Docker Desktop disponível. Baixando e instalando..."
-      local temp_deb="/tmp/docker-desktop-amd64.deb"
-      wget -q --show-progress -O "$temp_deb" "https://desktop.docker.com/linux/main/amd64/docker-desktop-amd64.deb?utm_source=docker&utm_medium=webreferral&utm_campaign=docs-driven-download-linux-amd64"
-
-      if [ -f "$temp_deb" ]; then
-        systemctl --user stop docker-desktop
-        sudo dpkg -i "$temp_deb" && rm "$temp_deb"
-        systemctl --user start docker-desktop
-        dtb_log_ok "Docker Desktop atualizado com sucesso."
-      else
-        dtb_log_err "Falha ao baixar o Docker Desktop."
-      fi
-    fi
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v docker &>/dev/null; then
+    dtb_run_step_verbose "Verificando atualizações do Docker Desktop..." bash -c "$(declare -f _dtb_update_docker_desktop); _dtb_update_docker_desktop"
   fi
 
   # Mac App Store (via `mas` - https://github.com/mas-cli/mas)
   if [[ "$os" == "macos" ]] && command -v mas &>/dev/null; then
-    dtb_run_step "Atualizando apps da Mac App Store..." mas upgrade
+    dtb_run_step "Atualizando apps da Mac App Store..." "Apps da Mac App Store atualizados." mas upgrade
   fi
 
   # Limpeza (apt - inexistente no macOS)
-  if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
-    dtb_run_step "Limpando pacotes órfãos (autoremove/autoclean)..." bash -c 'sudo apt autoremove -y && sudo apt autoclean'
+  if [[ "$has_sudo" -eq 1 ]] && [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
+    dtb_run_step "Limpando pacotes órfãos (autoremove/autoclean)..." "Pacotes órfãos removidos." bash -c 'sudo apt autoremove -y && sudo apt autoclean'
   fi
 
   echo ""
