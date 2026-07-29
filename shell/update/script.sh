@@ -38,7 +38,9 @@ update() {
   esac
 
   if [[ "$only_dev_toolbox" -eq 0 ]]; then
+    echo "Este comando precisa de privilégios sudo pra executar (apt, dpkg, systemctl etc)." >&2
     sudo -v
+    echo ""
     dtb_log_banner "Iniciando atualização do sistema..."
   else
     dtb_log_banner "Atualizando só o dev-toolbox..."

@@ -3,6 +3,8 @@
 Mostra detalhes de um deployment no Kubernetes: namespace, env, versão e
 quem/quando fez o último deploy.
 
+![exemplo do kinfo](assets/kinfo.png)
+
 ## Uso
 
 ```bash

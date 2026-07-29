@@ -3,6 +3,8 @@
 Lista branches locais já mergeadas no remote (`origin` por padrão), com
 opção de apagar as encontradas.
 
+![exemplo do check-local-branches](assets/local.png)
+
 ## Uso
 
 ```bash

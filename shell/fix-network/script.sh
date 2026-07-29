@@ -41,7 +41,9 @@ fix-network() {
     *) os="linux" ;;
   esac
 
+  echo "Este comando precisa de privilégios sudo pra executar (IPv6, DNS, restart de rede)." >&2
   sudo -v
+  echo ""
 
   dtb_log_banner "Iniciando ajustes de rede..."
 

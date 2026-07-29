@@ -4,6 +4,8 @@ Lista as branches remotas de um repo GitHub - via API (`gh`), sem clone ou
 fetch local - com status de merge/PR, autoria e idade, e permite apagar as
 encontradas.
 
+![exemplo do check-remote-branches](assets/remote.png)
+
 ## Uso
 
 ```bash

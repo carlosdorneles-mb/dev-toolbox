@@ -3,6 +3,8 @@
 Lista os aliases de shell configurados no `~/.bashrc`/`~/.zshrc` (+ os do
 dev-toolbox) e os aliases de git, numa tabela indicando de onde cada um vem.
 
+![exemplo do aliases](assets/aliases.png)
+
 ## Uso
 
 ```bash

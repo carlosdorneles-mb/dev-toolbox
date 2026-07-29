@@ -3,6 +3,8 @@
 Ajusta a rede em caso de instabilidade de conexão. Cross-platform
 Ubuntu/Debian + macOS.
 
+![exemplo do fix-network](assets/network.png)
+
 ## Uso
 
 ```bash

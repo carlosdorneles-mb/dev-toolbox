@@ -63,7 +63,7 @@ duplicado (ex: `git chain` aparecendo mais de uma vez).
 
 ## Dependências
 
-`jq`, [`gum`](https://github.com/charmbracelet/gum) e
+[`jq`](https://github.com/jqlang/jq), [`gum`](https://github.com/charmbracelet/gum) e
 [`glow`](https://github.com/charmbracelet/glow) são **obrigatórios** -
 vários itens do toolbox exigem eles. `install.sh` roda `deps.sh`
 automaticamente antes de instalar/atualizar - ele detecta o que já está
