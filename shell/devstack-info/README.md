@@ -1,15 +1,15 @@
-# kinfo
+# devstack-info
 
 Mostra detalhes de um deployment no Kubernetes: namespace, env, versão e
 quem/quando fez o último deploy.
 
-![exemplo do kinfo](assets/kinfo.png)
+![exemplo do devstack-info](assets/devstack-info.png)
 
 ## Uso
 
 ```bash
-kinfo <ambiente> [nome-do-app]
-kinfo -h | --help
+devstack-info <ambiente> [nome-do-app]
+devstack-info -h | --help
 ```
 
 - `<ambiente>` (obrigatório) - namespace do Kubernetes. Se omitido, cai no
@@ -58,7 +58,7 @@ setado - mesma convenção do resto do dev-toolbox (`deps.sh`, `install.sh`).
 ## Exemplo
 
 ```bash
-$ kinfo staging minha-api
+$ devstack-info staging minha-api
 
 ========== Detalhes do Deployment ==========
 App:        minha-api

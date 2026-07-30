@@ -35,17 +35,24 @@
     "description": "Updates dev-toolbox, system packages and installed dev tools (apt/brew/uv/poetry/mise/rustup/pipx/gh/docker/...); --only-dev-toolbox updates just dev-toolbox"
   },
   {
-    "id": "kinfo",
-    "type": "shell",
-    "path": "shell/kinfo/script.sh",
-    "entry": "kinfo",
-    "description": "Shows Kubernetes deployment details for an app, with a gum picker if the app is omitted"
-  },
-  {
     "id": "fix-network",
     "type": "shell",
     "path": "shell/fix-network/script.sh",
     "entry": "fix-network",
     "description": "Fixes network instability: resets IPv6/DNS, restarts NetworkManager and Netskope (Linux only)"
+  },
+  {
+    "id": "devstack-info",
+    "type": "shell",
+    "path": "shell/devstack-info/script.sh",
+    "entry": "devstack-info",
+    "description": "Shows Kubernetes deployment details for an app, with a gum picker if the app is omitted"
+  },
+  {
+    "id": "devstack-users",
+    "type": "shell",
+    "path": "shell/devstack-users/script.sh",
+    "entry": "devstack-users",
+    "description": "Browses/edits devstack users, subwallets and asset balances via MySQL/PostgreSQL port-forward in an interactive fzf UI"
   }
 ]

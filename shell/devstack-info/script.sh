@@ -1,15 +1,15 @@
-# Comando "kinfo": mostra detalhes de um deployment/pod no Kubernetes
-# (namespace, env, versão, quem/quando fez o último deploy). Com gum
-# instalado: ambiente omitido pede via "gum input"; app omitido abre um
-# seletor ("gum filter") com os deployments do namespace.
+# Comando "devstack-info": mostra detalhes de um deployment/pod no
+# Kubernetes (namespace, env, versão, quem/quando fez o último deploy).
+# Com gum instalado: ambiente omitido pede via "gum input"; app omitido
+# abre um seletor ("gum filter") com os deployments do namespace.
 #
-# Uso: kinfo <ambiente> [nome-do-app]
-# Uso: kinfo -h | --help
-_dtb_help_kinfo() {
+# Uso: devstack-info <ambiente> [nome-do-app]
+# Uso: devstack-info -h | --help
+_dtb_help_devstack_info() {
   if command -v glow >/dev/null 2>&1; then
-    glow -w 0 "{{ROOT}}/shell/kinfo/README.md"
+    glow -w 0 "{{ROOT}}/shell/devstack-info/README.md"
   else
-    cat "{{ROOT}}/shell/kinfo/README.md"
+    cat "{{ROOT}}/shell/devstack-info/README.md"
   fi
 }
 
@@ -17,7 +17,7 @@ _dtb_help_kinfo() {
 # comando externo, nao um PID direto - poll leve de 0.1s resolve isso sem
 # precisar redirecionar a saida do comando real por dentro do gum spin,
 # que exigiria escapar o jsonpath dentro de um bash -c aninhado)
-_dtb_kinfo_wait_gum() {
+_dtb_devstack_info_wait_gum() {
   local title="$1" pid="$2"
   if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
     gum spin --spinner dot --title "$title" -- bash -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
@@ -25,29 +25,30 @@ _dtb_kinfo_wait_gum() {
   wait "$pid" 2>/dev/null
 }
 
-kinfo() {
+devstack-info() {
   local arg
   for arg in "$@"; do
     case "$arg" in
-      -h|--help) _dtb_help_kinfo; return 0 ;;
+      -h|--help) _dtb_help_devstack_info; return 0 ;;
     esac
   done
 
-  # kinfo roda dentro do shell interativo do usuario (funcao sourced, nao
-  # subshell) - com job control ligado (padrao em shell interativo), o "&"
-  # em background concorrendo com o "gum spin" (rodando em foreground,
-  # fazendo poll do PID) faz o bash notificar "[N] PID"/"[N]+ Done|Exit" a
-  # qualquer momento (nao so na linha do "wait" - redirecionar so a saida
-  # do "wait"/do lancamento do "&" nao e suficiente). "-m" (monitor) sozinho
-  # nao basta - "-b" (notificacao assincrona de job) tambem precisa ir,
-  # senao o aviso ainda escapa. Nenhum dos dois recursos e usado aqui (sem
-  # fg/bg/suspend) - desliga os dois so durante a chamada.
+  # devstack-info roda dentro do shell interativo do usuario (funcao
+  # sourced, nao subshell) - com job control ligado (padrao em shell
+  # interativo), o "&" em background concorrendo com o "gum spin" (rodando
+  # em foreground, fazendo poll do PID) faz o bash notificar "[N] PID"/"[N]+
+  # Done|Exit" a qualquer momento (nao so na linha do "wait" - redirecionar
+  # so a saida do "wait"/do lancamento do "&" nao e suficiente). "-m"
+  # (monitor) sozinho nao basta - "-b" (notificacao assincrona de job)
+  # tambem precisa ir, senao o aviso ainda escapa. Nenhum dos dois recursos
+  # e usado aqui (sem fg/bg/suspend) - desliga os dois so durante a chamada.
   #
-  # Restaura via wrapper (chama _dtb_kinfo_impl e recupera o "set" depois),
-  # NAO via "trap ... RETURN": a mera presenca de um RETURN trap faz o bash
-  # voltar a emitir o aviso mesmo com "-b" desligado (comportamento
-  # observado, nao documentado) - o wrapper evita isso porque os vários
-  # "return" de dentro da função só saem dela, nunca de "kinfo" direto.
+  # Restaura via wrapper (chama _dtb_devstack_info_impl e recupera o "set"
+  # depois), NAO via "trap ... RETURN": a mera presenca de um RETURN trap
+  # faz o bash voltar a emitir o aviso mesmo com "-b" desligado
+  # (comportamento observado, nao documentado) - o wrapper evita isso
+  # porque os vários "return" de dentro da função só saem dela, nunca de
+  # "devstack-info" direto.
   local _dtb_had_monitor=0 _dtb_had_notify=0
   case "$-" in *m*) _dtb_had_monitor=1 ;; esac
   case "$-" in *b*) _dtb_had_notify=1 ;; esac
@@ -56,8 +57,8 @@ kinfo() {
   else
     set +mb
   fi
-  _dtb_kinfo_impl "$@"
-  local _dtb_kinfo_rc=$?
+  _dtb_devstack_info_impl "$@"
+  local _dtb_devstack_info_rc=$?
   if [ -n "$ZSH_VERSION" ]; then
     (( _dtb_had_monitor )) && setopt monitor
     (( _dtb_had_notify )) && setopt notify
@@ -65,10 +66,10 @@ kinfo() {
     (( _dtb_had_monitor )) && set -m
     (( _dtb_had_notify )) && set -b
   fi
-  return "$_dtb_kinfo_rc"
+  return "$_dtb_devstack_info_rc"
 }
 
-_dtb_kinfo_impl() {
+_dtb_devstack_info_impl() {
   local ENV=${1:-${K_ENV}}
   local APP=${2:-${K_APP}}
 
@@ -78,7 +79,7 @@ _dtb_kinfo_impl() {
   local RED="$_DTB_RED" GREEN="$_DTB_GREEN" YELLOW="$_DTB_YELLOW" BLUE="$_DTB_BLUE" NC="$_DTB_RESET"
 
   if ! command -v kubectl >/dev/null 2>&1; then
-    echo -e "${RED}Erro: 'kubectl' não encontrado - instale-o antes de usar o kinfo.${NC}"
+    echo -e "${RED}Erro: 'kubectl' não encontrado - instale-o antes de usar o devstack-info.${NC}"
     return 1
   fi
 
@@ -87,7 +88,7 @@ _dtb_kinfo_impl() {
   local ci_tmp
   ci_tmp="$(mktemp)"
   { kubectl cluster-info --request-timeout=10s > "$ci_tmp" 2>&1 & } 2>/dev/null
-  if ! _dtb_kinfo_wait_gum "Verificando credenciais do cluster..." "$!"; then
+  if ! _dtb_devstack_info_wait_gum "Verificando credenciais do cluster..." "$!"; then
     echo -e "${RED}Erro: não foi possível conectar ao cluster (credenciais/kubeconfig inválidos?).${NC}"
     cat "$ci_tmp"
     rm -f "$ci_tmp"
@@ -103,7 +104,7 @@ _dtb_kinfo_impl() {
   fi
   if [ -z "$ENV" ]; then
     echo -e "${RED}Erro: O nome do ambiente (namespace) é obrigatório.${NC}"
-    echo -e "Uso: kinfo <ambiente> [nome-do-app]"
+    echo -e "Uso: devstack-info <ambiente> [nome-do-app]"
     return 1
   fi
 
@@ -117,7 +118,7 @@ _dtb_kinfo_impl() {
       local lista_tmp lista
       lista_tmp="$(mktemp)"
       { kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' > "$lista_tmp" 2>/dev/null & } 2>/dev/null
-      _dtb_kinfo_wait_gum "Buscando apps no namespace '$ENV'..." "$!"
+      _dtb_devstack_info_wait_gum "Buscando apps no namespace '$ENV'..." "$!"
       lista="$(cat "$lista_tmp")"
       rm -f "$lista_tmp"
       if [ -z "$lista" ]; then
@@ -134,7 +135,7 @@ _dtb_kinfo_impl() {
       echo -e "--------------------------------------------------------${NC}"
       echo -e "Sem 'gum', instale de novo via: curl -fsSL https://raw.githubusercontent.com/carlosdorneles-mb/dev-toolbox/main/bootstrap.sh | bash"
       echo -e ""
-      echo -e "Ou informe o app manualmente: ${BLUE}kinfo $ENV <nome-app>${NC}"
+      echo -e "Ou informe o app manualmente: ${BLUE}devstack-info $ENV <nome-app>${NC}"
       echo -e "${RED}--------------------------------------------------------${NC}"
       return 1
     fi
@@ -144,7 +145,7 @@ _dtb_kinfo_impl() {
   local DATA_RAW data_tmp
   data_tmp="$(mktemp)"
   { kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' > "$data_tmp" 2>/dev/null & } 2>/dev/null
-  _dtb_kinfo_wait_gum "Buscando detalhes do deployment '$APP'..." "$!"
+  _dtb_devstack_info_wait_gum "Buscando detalhes do deployment '$APP'..." "$!"
   DATA_RAW="$(cat "$data_tmp")"
   rm -f "$data_tmp"
 

@@ -64,7 +64,7 @@ dev-toolbox/
 antes do `script.sh` concatenado - defesa contra o erro clássico do bash
 "defining function based on alias" quando o shell do usuário (oh-my-zsh, rc
 antigo etc) já tem um alias com o mesmo nome da função (`entry` no
-`catalog.json`, ex: `update`, `kinfo`).
+`catalog.json`, ex: `update`, `devstack-info`).
 
 ## Padrão de flags e help
 
@@ -74,7 +74,7 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
    percorrendo `$@` — nunca `for arg in "$@"` nem checar só `${1:-}` na mão.
    Scripts sem flag real (só `-h`) ainda usam um loop pra detectar `-h`/`--help`
    em qualquer posição, mesmo com argumentos posicionais depois (ver
-   `shell/kinfo/script.sh`, `shell/update/script.sh`).
+   `shell/devstack-info/script.sh`, `shell/update/script.sh`).
 2. **Função de help:** texto do `-h`/`--help` sempre numa função dedicada,
    nomeada `_dtb_help_<id>` (`<id>` = nome do diretório do item, hífen vira
    underscore — ex: `_dtb_help_fix_network`, `_dtb_help_check_local_branches`). A
@@ -98,19 +98,19 @@ Todo `script.sh` (git ou shell) que aceita opções segue a mesma forma:
      $ <comando> ...
    ```
    Ver `git/chain/script.sh` e `git/check-local-branches/script.sh` como referência
-   completa (com Exemplos:); `shell/kinfo`, `shell/update`, `shell/aliases`,
+   completa (com Exemplos:); `shell/devstack-info`, `shell/update`, `shell/aliases`,
    `shell/fix-network` como referência enxuta (sem Exemplos:).
 
 ## Dependências externas (`deps.sh`)
 
 `deps.sh` checa/instala/atualiza binários externos exigidos pelos itens do
-toolbox (hoje: `jq`, `gum`, `glow`, `gh`) via `brew` (macOS) ou `apt-get`
-(Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do próprio script -
-não existe arquivo de configuração externo pra isso. `jq`, `gum` e `glow`
-são obrigatórios - instalados sem perguntar, e se a instalação falhar
-`install.sh` aborta (`set -euo pipefail`, sem fallback degradado). `gh` é
-opcional - pede confirmação antes de instalar/atualizar; se o usuário
-recusar, `install.sh` segue normalmente.
+toolbox (hoje: `jq`, `gum`, `glow`, `fzf`, `gh`) via `brew` (macOS) ou
+`apt-get` (Ubuntu/Debian). A lista fica hardcoded no array `DEPS` do
+próprio script - não existe arquivo de configuração externo pra isso.
+`jq`, `gum`, `glow` e `fzf` são obrigatórios - instalados sem perguntar, e
+se a instalação falhar `install.sh` aborta (`set -euo pipefail`, sem
+fallback degradado). `gh` é opcional - pede confirmação antes de
+instalar/atualizar; se o usuário recusar, `install.sh` segue normalmente.
 
 ## Antes de commitar
 

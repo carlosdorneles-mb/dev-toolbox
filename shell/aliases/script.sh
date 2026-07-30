@@ -9,7 +9,7 @@
 # de framework, oh-my-zsh, etc) fica de fora da tabela - o objetivo aqui e
 # mostrar o que foi configurado nesses arquivos, nao todo alias ativo na
 # sessao.
-# shell "aliases" do proprio dev-toolbox (aliases/update/kinfo/fix-network)
+# shell "aliases" do proprio dev-toolbox (aliases/update/devstack-info/fix-network)
 # nao sao "alias" builtin, sao funcoes - por isso entram num loop separado,
 # lendo os nomes de funcao direto do aliases.local.sh gerado.
 _dtb_aliases_collect() {
@@ -54,7 +54,7 @@ _dtb_aliases_collect() {
     while IFS= read -r fname; do
       [[ -z "$fname" ]] && continue
       printf 'shell\t%s\t%s\t%s\n' "$fname" "dev-toolbox" "$fname"
-    done < <(grep -oE '^[A-Za-z][A-Za-z0-9_]*\(\)' "$dtb_func_file" 2>/dev/null | sed 's/()$//')
+    done < <(grep -oE '^[A-Za-z][A-Za-z0-9_-]*\(\)' "$dtb_func_file" 2>/dev/null | sed 's/()$//')
   fi
 
   # --- aliases de git ---

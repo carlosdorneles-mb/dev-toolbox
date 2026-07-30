@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Verifica/instala dependências externas usadas pelos itens do dev-toolbox
-# (jq, gum, glow, gh, ...). Detecta o que já está instalado e a versão;
+# (jq, gum, glow, fzf, gh, ...). Detecta o que já está instalado e a versão;
 # instala o que falta e atualiza o que estiver abaixo da versão mínima
-# exigida. jq, gum e glow são obrigatórios (instalados sem perguntar, falha
-# aborta o install.sh); gh é opcional (pede confirmação antes de
+# exigida. jq, gum, glow e fzf são obrigatórios (instalados sem perguntar,
+# falha aborta o install.sh); gh é opcional (pede confirmação antes de
 # instalar/atualizar).
 #
 # Uso:
@@ -31,6 +31,7 @@ DEPS=(
   "jq|1.6|jq --version"
   "gum|0.13.0|gum --version"
   "glow|2.0.0|glow --version"
+  "fzf|0.30.0|fzf --version"
   "gh|2.0.0|gh --version"
 )
 

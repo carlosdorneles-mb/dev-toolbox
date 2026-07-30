@@ -10,7 +10,7 @@
 # gum e obrigatorio em terminal interativo pra quem de fato usa
 # dtb_log_*/dtb_run_step (update, fix-network) - a checagem fica no
 # proprio script que usa, nao aqui, porque scripts que so sourciam log.sh
-# pelas cores (aliases, kinfo) nao devem travar por causa de gum quando
+# pelas cores (aliases, devstack-info) nao devem travar por causa de gum quando
 # nem chamam essas funcoes.
 if [[ -z "${_DTB_LOG_LOADED:-}" ]]; then
   _DTB_LOG_LOADED=1
