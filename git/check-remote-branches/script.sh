@@ -352,6 +352,15 @@ for b in "${branch_names[@]}"; do
   table_rows+="$(printf '\n%s\t%s\t%s\t%s\t%s\t%s' \
     "$status" "$branch_cell" "${DIM}${created_by[$b]:-?}${RESET}" "${DIM}${updated_by[$b]:-?}${RESET}" "${DIM}${age_label}${RESET}" "$flags")"
 done
+if (( ! any_shown )); then
+  motivo_vazio="nenhuma branch"
+  (( only_merged && only_stale )) && motivo_vazio="nenhuma branch mergeada/stale encontrada"
+  (( only_merged && ! only_stale )) && motivo_vazio="nenhuma branch mergeada encontrada"
+  (( only_stale && ! only_merged )) && motivo_vazio="nenhuma branch stale encontrada (limite: ${stale_days} dias)"
+  echo "${DIM}${motivo_vazio}${RESET}"
+  exit 0
+fi
+
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! delete_mode )) && (( is_tty )); then
@@ -365,6 +374,10 @@ if (( ! delete_mode )) && (( is_tty )); then
   if (( any_shown )); then
     dtb_hints_flags+=("--delete")
     dtb_hints_descs+=("apaga as candidatas (--yes pula confirmação)")
+    dtb_hints_flags+=("--only-merged --delete")
+    dtb_hints_descs+=("remove todas as branches já mergeadas (+ --yes pra automático)")
+    dtb_hints_flags+=("--only-stale --stale-days 90 --delete")
+    dtb_hints_descs+=("apaga branches criadas há mais de 90 dias (+ --yes pra automático)")
   fi
   dtb_print_random_hint "git check-remote-branches" "$DIM" "$RESET"
 fi

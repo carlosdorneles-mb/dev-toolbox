@@ -241,10 +241,12 @@ if (( json_mode )); then
 fi
 
 any_deletable=0
+matched_count=0
 table_rows="$(printf 'STATUS\tBRANCH\tMOTIVO\tÚLTIMO COMMIT\tDEFASAGEM\tNOTA\n')"
 for i in "${!results_name[@]}"; do
   (( only_merged )) && (( ! results_merged[i] )) && continue
   (( only_stale )) && (( ! results_stale[i] )) && continue
+  matched_count=$(( matched_count + 1 ))
   b="${results_name[$i]}"
   [[ "$b" != "$real_current" ]] && any_deletable=1
 
@@ -274,6 +276,15 @@ for i in "${!results_name[@]}"; do
       "${DIM}-${RESET}" "$b" "${DIM}-${RESET}" "${DIM}${last_commit}${RESET}" "${DIM}${defasagem}${RESET}" "${YELLOW}${nota}${RESET}")"
   fi
 done
+if (( matched_count == 0 )); then
+  motivo_vazio="nenhuma branch"
+  (( only_merged && only_stale )) && motivo_vazio="nenhuma branch mergeada/stale encontrada"
+  (( only_merged && ! only_stale )) && motivo_vazio="nenhuma branch mergeada encontrada"
+  (( only_stale && ! only_merged )) && motivo_vazio="nenhuma branch stale encontrada (limite: ${stale_days} dias)"
+  echo "${DIM}${motivo_vazio}${RESET}"
+  exit 0
+fi
+
 printf '%s\n' "$table_rows" | dtb_print_table "$BOLD" "$RESET"
 
 if (( ! delete_mode )) && (( is_tty )); then
@@ -288,6 +299,10 @@ if (( ! delete_mode )) && (( is_tty )); then
   if (( any_deletable )); then
     dtb_hints_flags+=("--delete")
     dtb_hints_descs+=("escolhe quais apagar (--yes apaga mergeadas, +stale com --only-stale)")
+    dtb_hints_flags+=("--only-merged --delete")
+    dtb_hints_descs+=("remove todas as branches já mergeadas (+ --yes pra automático)")
+    dtb_hints_flags+=("--only-stale --stale-days 90 --delete")
+    dtb_hints_descs+=("apaga branches criadas há mais de 90 dias (+ --yes pra automático)")
   fi
   dtb_print_random_hint "git check-local-branches" "$DIM" "$RESET"
 fi
