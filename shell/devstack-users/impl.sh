@@ -444,9 +444,10 @@ copy_user_field() {
     value=$(echo "$choice" | cut -f2)
 
     if dtb_copy_to_clipboard "$value"; then
-        log_info "\"$field\" copiado pra área de transferência: $value"
+        log_info "\"$field\" copiado pra área de transferência."
     else
-        log_warning "Nenhuma ferramenta de clipboard encontrada (xclip/xsel/wl-copy/pbcopy). Valor de \"$field\": $value"
+        log_warning "Nenhuma ferramenta de clipboard encontrada (xclip/xsel/wl-copy/pbcopy)."
+        echo "$field: $value"
     fi
 }
 
