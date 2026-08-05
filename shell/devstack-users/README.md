@@ -39,6 +39,7 @@ devstack-users -h | --help
 **Nível 1 — Usuários**
 - `ENTER` — abre subwallets do usuário selecionado
 - `CTRL-E` — edita Nome / Email / PIN / Palavra Segura do usuário (`UPDATE` no MySQL)
+- `CTRL-Y` — copia um campo (User ID, Nome, CPF/CNPJ, User Hash, Email, PIN, Palavra Segura) pra área de transferência
 - `ESC` — encerra o comando
 
 **Nível 2 — Subwallets**
@@ -60,6 +61,8 @@ Todos os níveis suportam busca incremental por qualquer campo visível.
   junto com jq/gum/glow, sem perguntar).
 - Portas locais `5433` e `3307` livres antes de executar (o comando sobe
   `kubectl port-forward` nelas e derruba ao sair).
+- Opcional: `xclip`/`xsel` (X11), `wl-copy` (Wayland) ou `pbcopy` (macOS) pro
+  `CTRL-Y` copiar de fato — sem nenhum deles, o valor só é impresso no log.
 
 ## Observações
 

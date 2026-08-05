@@ -11,6 +11,8 @@ source "$SCRIPT_DIR/../_lib/log.sh"
 source "$SCRIPT_DIR/../_lib/db-clients.sh"
 # shellcheck source=../_lib/kubernetes.sh
 source "$SCRIPT_DIR/../_lib/kubernetes.sh"
+# shellcheck source=../_lib/clipboard.sh
+source "$SCRIPT_DIR/../_lib/clipboard.sh"
 
 # Uso e detalhes completos: ver README.md no mesmo diretório (ou
 # `devstack-users -h`, que já abre este README via glow/cat).
@@ -408,8 +410,49 @@ EOF
     fi
 }
 
+# Copia um campo do usuário (User ID/Nome/CPF/User Hash/Email/PIN/Palavra
+# Segura) pra área de transferência. Recebe raw_line (linha TSV de RAW_DATA).
+copy_user_field() {
+    local raw_line="$1"
+    local user_id user_name cpf user_hash email pin palavra
+    user_id=$(echo "$raw_line" | cut -f1)
+    user_name=$(echo "$raw_line" | cut -f2)
+    cpf=$(echo "$raw_line" | cut -f3)
+    user_hash=$(echo "$raw_line" | cut -f4)
+    email=$(echo "$raw_line" | cut -f5)
+    pin=$(echo "$raw_line" | cut -f11)
+    palavra=$(echo "$raw_line" | cut -f12)
+
+    local choice
+    choice=$(printf "User ID\t%s\nNome\t%s\nCPF/CNPJ\t%s\nUser Hash\t%s\nEmail\t%s\nPIN\t%s\nPalavra Segura\t%s\n" \
+        "$user_id" "$user_name" "$cpf" "$user_hash" "$email" "$pin" "$palavra" | fzf \
+        --delimiter=$'\t' \
+        --with-nth=1 \
+        --layout=reverse \
+        --header="Copiar campo de $user_name (ID: $user_id) | [ENTER] copiar | [ESC] cancelar" \
+        --prompt="Campo > " \
+        --preview='echo {2}' \
+        --preview-window='right:60%:wrap' \
+        --height=50% \
+        --border \
+        --no-sort)
+
+    [ -z "$choice" ] && return
+
+    local field value
+    field=$(echo "$choice" | cut -f1)
+    value=$(echo "$choice" | cut -f2)
+
+    if dtb_copy_to_clipboard "$value"; then
+        log_info "\"$field\" copiado pra área de transferência: $value"
+    else
+        log_warning "Nenhuma ferramenta de clipboard encontrada (xclip/xsel/wl-copy/pbcopy). Valor de \"$field\": $value"
+    fi
+}
+
 # Lista usuários via MySQL e seleciona um via fzf.
-# Enter abre subwallets. CTRL-E edita Nome/PIN/Palavra Segura. ESC fecha.
+# Enter abre subwallets. CTRL-E edita Nome/PIN/Palavra Segura. CTRL-Y copia
+# um campo pra área de transferência. ESC fecha.
 list_and_select_user() {
     RAW_DATA=$(mktemp)
     add_tmpfile "$RAW_DATA"
@@ -423,13 +466,13 @@ list_and_select_user() {
     while true; do
         local fzf_result key selected line_num raw_line
         fzf_result=$(echo "$USERS_DISPLAY" | fzf \
-            --expect='enter,ctrl-e' \
+            --expect='enter,ctrl-e,ctrl-y' \
             --print-query \
             --no-hscroll \
             --layout=reverse \
             --delimiter=$'\t' \
             --with-nth=2 \
-            --header=$'[ENTER] subwallets | [CTRL-E] editar dados | [ESC] fechar\nUSER_ID     NOME                  CPF/CNPJ' \
+            --header=$'[ENTER] subwallets | [CTRL-E] editar dados | [CTRL-Y] copiar campo | [ESC] fechar\nUSER_ID     NOME                  CPF/CNPJ' \
             --prompt='Filtrar > ' \
             --query="$query" \
             --preview="$PREVIEW_SCRIPT $RAW_DATA {1}" \
@@ -453,6 +496,9 @@ list_and_select_user() {
             ctrl-e)
                 edit_user_field "$raw_line"
                 load_users_data
+                ;;
+            ctrl-y)
+                copy_user_field "$raw_line"
                 ;;
             *)
                 show_subwallet_fzf "$raw_line"
