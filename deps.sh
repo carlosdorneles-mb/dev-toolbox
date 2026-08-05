@@ -151,6 +151,33 @@ _add_charm_apt_repo() {
     | $sudo_cmd tee /etc/apt/sources.list.d/charm.list > /dev/null
 }
 
+_has_clipboard_tool() {
+  command -v wl-copy &>/dev/null || command -v xclip &>/dev/null || \
+    command -v xsel &>/dev/null || command -v pbcopy &>/dev/null
+}
+
+_clipboard_pkg_for_ubuntu() {
+  # wl-clipboard em sessão Wayland, xclip em X11 (fallback padrão)
+  if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
+    echo "wl-clipboard"
+  else
+    echo "xclip"
+  fi
+}
+
+_confirm_clipboard_install() {
+  # ferramenta de copy é opcional (só usada por devstack-users CTRL-Y) -
+  # pergunta antes de instalar, igual ao gh
+  if [[ ! -t 0 ]]; then
+    echo "${DIM}  stdin não é um terminal - pulando instalação da ferramenta de clipboard (rode manualmente se quiser).${RESET}"
+    return 1
+  fi
+
+  local reply
+  read -r -p "  ${YELLOW}?${RESET} instalar '$1' agora (usado por CTRL-Y em devstack-users)? [y/N] " reply
+  [[ "$reply" =~ ^[Yy]$ ]]
+}
+
 _confirm_gh_install() {
   # gh e opcional (só usado pelos scripts de PR) - pergunta antes de instalar,
   # ao contrário de jq/gum que são exigidos direto pelos scripts do toolbox
@@ -220,6 +247,29 @@ for entry in "${DEPS[@]}"; do
     fi
   fi
 done
+
+if [[ "$OS" != "macos" ]] && ! _has_clipboard_tool; then
+  echo "${YELLOW}⚠${RESET} nenhuma ferramenta de clipboard encontrada ${DIM}(xclip/xsel/wl-copy - opcional, usado por CTRL-Y em devstack-users)${RESET}"
+  if (( ! CHECK_ONLY )); then
+    case "$OS" in
+      ubuntu)
+        pkg="$(_clipboard_pkg_for_ubuntu)"
+        if _confirm_clipboard_install "$pkg"; then
+          if _install_or_upgrade "$pkg" install; then
+            echo "${GREEN}✔${RESET} $pkg instalado."
+          else
+            echo "${RED}✘${RESET} falha ao instalar $pkg - instale manualmente se quiser usar CTRL-Y."
+          fi
+        else
+          echo "${DIM}  pulando - instale xclip/xsel/wl-copy manualmente se quiser usar CTRL-Y.${RESET}"
+        fi
+        ;;
+      *)
+        echo "${DIM}  SO não suportado automaticamente pra isso - instale xclip/xsel/wl-copy manualmente se quiser usar CTRL-Y.${RESET}"
+        ;;
+    esac
+  fi
+fi
 
 echo ""
 if (( install_failed )); then
