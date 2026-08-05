@@ -90,6 +90,11 @@ fornecedor quando não estão nos repos padrão do apt). `./install.sh
 `deps.sh` pede confirmação antes de instalar/atualizar, incluindo o repo
 oficial do `gh` via `apt-get` quando necessário.
 
+Uma ferramenta de clipboard (`xclip`/`xsel`/`wl-copy` no Ubuntu, `pbcopy`
+nativo no macOS) também é **opcional** - só usada pelo `CTRL-Y` de
+`devstack-users`. No Ubuntu, `deps.sh` detecta a ausência e oferece instalar
+`xclip` (ou `wl-clipboard` em sessão Wayland) com a mesma confirmação do `gh`.
+
 Pra só checar sem instalar nada:
 
 ```bash

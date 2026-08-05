@@ -112,6 +112,12 @@ se a instalação falhar `install.sh` aborta (`set -euo pipefail`, sem
 fallback degradado). `gh` é opcional - pede confirmação antes de
 instalar/atualizar; se o usuário recusar, `install.sh` segue normalmente.
 
+Ferramenta de clipboard (`xclip`/`xsel`/`wl-copy`/`pbcopy`) é opcional e
+tratada fora do array `DEPS` (sem versão mínima a checar) - usada só por
+`CTRL-Y` em `devstack-users`. No Ubuntu, oferece instalar `xclip` (ou
+`wl-clipboard` sob Wayland, via `$XDG_SESSION_TYPE`) com a mesma confirmação
+do `gh`; no macOS o `pbcopy` já vem nativo, nada a fazer.
+
 ## Antes de commitar
 
 - `bash -n <script>.sh` em todo script tocado (falha de sintaxe não pode chegar em `main` - quebra alias de todo mundo que rodar `install.sh`/`bootstrap.sh`).
