@@ -14,15 +14,16 @@ devstack-rollout-crash-pods -h | --help
 
 - `[ambiente]` (obrigatório) - namespace do Kubernetes. Aceita posicional
   ou via flag `-n`/`--namespace`. Se omitido e `gum` estiver instalado
-  (terminal interativo), pede via prompt (`gum input`).
+  (terminal interativo), abre um seletor (`gum filter`) com os namespaces
+  do cluster.
 - `-h`/`--help` - mostra a ajuda embutida e sai.
 
 ## Descrição
 
 1. Verifica `kubectl` instalado e cluster correto (mesmo padrão de
    `devstack-info`/`devstack-users`).
-2. Valida o namespace (direto, via flag, ou prompt `gum input`) e confere
-   que ele existe no cluster.
+2. Valida o namespace (direto, via flag, ou seletor `gum filter` alimentado
+   por `kubectl get namespaces`) e confere que ele existe no cluster.
 3. Varre `kubectl get pods -n <ambiente>` por dois grupos de problema:
    - pods fora de `Running`/`Terminating`/`PodInitializing`/`Completed`/
      `ContainerCreating` (crash/erro);

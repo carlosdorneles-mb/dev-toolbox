@@ -16,7 +16,7 @@ devstack-users -h | --help
 
 | Argumento   | Descrição                                                    |
 |-------------|---------------------------------------------------------------|
-| `namespace` | Namespace Kubernetes (ex.: `mbpay-uat`). Interativo se omitido. |
+| `namespace` | Namespace Kubernetes (ex.: `mbpay-uat`). Se omitido e `gum` estiver instalado, abre um seletor (`gum filter`) com os namespaces do cluster; senão pede via prompt de texto. |
 | `filtro`    | Pré-filtra a lista de usuários ao abrir. Opcional.             |
 
 ## Flags

@@ -1,7 +1,8 @@
 # Comando "devstack-info": mostra detalhes de um deployment/pod no
 # Kubernetes (namespace, env, versão, quem/quando fez o último deploy).
-# Com gum instalado: ambiente omitido pede via "gum input"; app omitido
-# abre um seletor ("gum filter") com os deployments do namespace.
+# Com gum instalado: ambiente omitido abre um seletor ("gum filter") com
+# os namespaces do cluster; app omitido abre um seletor com os
+# deployments do namespace.
 #
 # Uso: devstack-info <ambiente> [nome-do-app]
 # Uso: devstack-info -n <ambiente> [-a <nome-do-app>]
@@ -12,18 +13,6 @@ _dtb_help_devstack_info() {
   else
     cat "{{ROOT}}/shell/devstack-info/README.md"
   fi
-}
-
-# espera um PID em background mostrando um spinner (gum so "vigia" um
-# comando externo, nao um PID direto - poll leve de 0.1s resolve isso sem
-# precisar redirecionar a saida do comando real por dentro do gum spin,
-# que exigiria escapar o jsonpath dentro de um bash -c aninhado)
-_dtb_devstack_info_wait_gum() {
-  local title="$1" pid="$2"
-  if [ -t 1 ] && command -v gum >/dev/null 2>&1; then
-    gum spin --spinner dot --title "$title" -- bash -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
-  fi
-  wait "$pid" 2>/dev/null
 }
 
 devstack-info() {
@@ -86,6 +75,7 @@ _dtb_devstack_info_impl() {
   # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -
   # mesma convenção do resto do dev-toolbox, ver shell/_lib/log.sh)
   source "{{ROOT}}/shell/_lib/log.sh"
+  source "{{ROOT}}/shell/_lib/kubernetes.sh"
   local RED="$_DTB_RED" GREEN="$_DTB_GREEN" YELLOW="$_DTB_YELLOW" BLUE="$_DTB_BLUE" NC="$_DTB_RESET"
 
   if ! command -v kubectl >/dev/null 2>&1; then
@@ -98,7 +88,7 @@ _dtb_devstack_info_impl() {
   local ci_tmp
   ci_tmp="$(mktemp)"
   { kubectl cluster-info --request-timeout=10s > "$ci_tmp" 2>&1 & } 2>/dev/null
-  if ! _dtb_devstack_info_wait_gum "Verificando credenciais do cluster..." "$!"; then
+  if ! dtb_wait_gum_pid "Verificando credenciais do cluster..." "$!"; then
     echo -e "${RED}Erro: não foi possível conectar ao cluster (credenciais/kubeconfig inválidos?).${NC}"
     cat "$ci_tmp"
     rm -f "$ci_tmp"
@@ -107,10 +97,16 @@ _dtb_devstack_info_impl() {
   rm -f "$ci_tmp"
 
   # 1. Validação do Ambiente - sem ele (nem argumento, nem $K_ENV), com gum
-  # instalado abre um prompt pra digitar em vez de só erro/uso
+  # instalado abre um seletor ("gum filter") com os namespaces do cluster
   if [ -z "$ENV" ] && [ -t 1 ] && command -v gum >/dev/null 2>&1; then
-    ENV=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
-    [ -n "$ENV" ] && echo -e "${BLUE}Ambiente:${NC} $ENV"
+    local ns_list
+    ns_list="$(dtb_list_namespaces "Buscando namespaces do cluster...")"
+    if [ -z "$ns_list" ]; then
+      echo -e "${RED}Não foi possível listar namespaces do cluster.${NC}"
+    else
+      ENV=$(echo "$ns_list" | tr ' ' '\n' | gum filter --height 15 --header="Selecione o namespace:")
+      [ -z "$ENV" ] && { echo "Operação cancelada."; return 0; }
+    fi
   fi
   if [ -z "$ENV" ]; then
     echo -e "${RED}Erro: O nome do ambiente (namespace) é obrigatório.${NC}"
@@ -128,7 +124,7 @@ _dtb_devstack_info_impl() {
       local lista_tmp lista
       lista_tmp="$(mktemp)"
       { kubectl get deployments -n "$ENV" --request-timeout=10s -o jsonpath='{.items[*].metadata.name}' > "$lista_tmp" 2>/dev/null & } 2>/dev/null
-      _dtb_devstack_info_wait_gum "Buscando apps no namespace '$ENV'..." "$!"
+      dtb_wait_gum_pid "Buscando apps no namespace '$ENV'..." "$!"
       lista="$(cat "$lista_tmp")"
       rm -f "$lista_tmp"
       if [ -z "$lista" ]; then
@@ -155,7 +151,7 @@ _dtb_devstack_info_impl() {
   local DATA_RAW data_tmp
   data_tmp="$(mktemp)"
   { kubectl get deployment "$APP" -n "$ENV" --request-timeout=10s -o jsonpath='{.metadata.name}{"|"}{.metadata.namespace}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_ENV")].value}{"|"}{.spec.template.spec.containers[0].env[?(@.name=="OTEL_APP_VERSION")].value}{"|"}{.metadata.annotations.last_deploy_by}' > "$data_tmp" 2>/dev/null & } 2>/dev/null
-  _dtb_devstack_info_wait_gum "Buscando detalhes do deployment '$APP'..." "$!"
+  dtb_wait_gum_pid "Buscando detalhes do deployment '$APP'..." "$!"
   DATA_RAW="$(cat "$data_tmp")"
   rm -f "$data_tmp"
 

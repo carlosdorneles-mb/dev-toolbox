@@ -1,6 +1,8 @@
 # Comando "devstack-rollout-crash-pods": reinicia (rollout restart) os
 # deployments de um namespace que tenham pods em crash/erro, ou pods
-# "Running" com READY incompleto (ex: 0/1 em vez de 1/1).
+# "Running" com READY incompleto (ex: 0/1 em vez de 1/1). Com gum
+# instalado, ambiente omitido abre um seletor ("gum filter") com os
+# namespaces do cluster.
 #
 # Uso: devstack-rollout-crash-pods [ambiente]
 # Uso: devstack-rollout-crash-pods -n <ambiente>
@@ -58,6 +60,34 @@ devstack-rollout-crash-pods() {
     esac
   done
 
+  # roda dentro do shell interativo do usuario (funcao sourced, nao
+  # subshell) - dtb_list_namespaces usa "&"/wait em background pro
+  # spinner do gum, o que sob job control (padrao interativo) faz o bash
+  # notificar "[N] PID"/"[N]+ Done" no meio da tela (mesmo motivo/fix
+  # documentado historicamente em devstack-info/script.sh). Desliga
+  # monitor/notify só durante a chamada e restaura depois via wrapper
+  # (não via "trap ... RETURN" - reintroduziria o aviso).
+  local _dtb_had_monitor=0 _dtb_had_notify=0
+  case "$-" in *m*) _dtb_had_monitor=1 ;; esac
+  case "$-" in *b*) _dtb_had_notify=1 ;; esac
+  if [ -n "$ZSH_VERSION" ]; then
+    unsetopt monitor notify
+  else
+    set +mb
+  fi
+  _dtb_devstack_rollout_crash_pods_impl "$@"
+  local _dtb_rc=$?
+  if [ -n "$ZSH_VERSION" ]; then
+    (( _dtb_had_monitor )) && setopt monitor
+    (( _dtb_had_notify )) && setopt notify
+  else
+    (( _dtb_had_monitor )) && set -m
+    (( _dtb_had_notify )) && set -b
+  fi
+  return "$_dtb_rc"
+}
+
+_dtb_devstack_rollout_crash_pods_impl() {
   source "{{ROOT}}/shell/_lib/log.sh"
   source "{{ROOT}}/shell/_lib/kubernetes.sh"
 
@@ -75,7 +105,14 @@ devstack-rollout-crash-pods() {
 
   local NAMESPACE="${_dtb_arg_namespace:-${_dtb_positional[0]:-}}"
   if [ -z "$NAMESPACE" ] && [ -t 1 ] && command -v gum >/dev/null 2>&1; then
-    NAMESPACE=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
+    local ns_list
+    ns_list="$(dtb_list_namespaces "Buscando namespaces do cluster...")"
+    if [ -z "$ns_list" ]; then
+      dtb_log_err "Não foi possível listar namespaces do cluster."
+    else
+      NAMESPACE=$(echo "$ns_list" | tr ' ' '\n' | gum filter --height 15 --header="Selecione o namespace:")
+      [ -z "$NAMESPACE" ] && { echo "Operação cancelada."; return 0; }
+    fi
   fi
   if [ -z "$NAMESPACE" ]; then
     dtb_log_err "O nome do ambiente (namespace) é obrigatório."
@@ -86,8 +123,17 @@ devstack-rollout-crash-pods() {
   dtb_check_namespace_exists "$NAMESPACE" || return 1
 
   local deployments_crash deployments_ready_mismatch deployments_to_restart
-  deployments_crash="$(_dtb_devstack_rollout_crash_pods_get_crash "$NAMESPACE")"
-  deployments_ready_mismatch="$(_dtb_devstack_rollout_crash_pods_get_ready_mismatch "$NAMESPACE")"
+  local _dtb_tmp_crash _dtb_tmp_mismatch
+  _dtb_tmp_crash="$(mktemp)"
+  _dtb_tmp_mismatch="$(mktemp)"
+  {
+    _dtb_devstack_rollout_crash_pods_get_crash "$NAMESPACE" > "$_dtb_tmp_crash"
+    _dtb_devstack_rollout_crash_pods_get_ready_mismatch "$NAMESPACE" > "$_dtb_tmp_mismatch"
+  } &
+  dtb_wait_gum_pid "Buscando pods com problema em '$NAMESPACE'..." "$!"
+  deployments_crash="$(cat "$_dtb_tmp_crash")"
+  deployments_ready_mismatch="$(cat "$_dtb_tmp_mismatch")"
+  rm -f "$_dtb_tmp_crash" "$_dtb_tmp_mismatch"
   deployments_to_restart="$(printf '%s\n%s\n' "$deployments_crash" "$deployments_ready_mismatch" | grep -v '^$' | sort -u)"
 
   if [ -z "$deployments_to_restart" ]; then
@@ -104,7 +150,8 @@ devstack-rollout-crash-pods() {
 
   echo
   local confirm
-  read -r -p "Confirmar rollout restart dos deployments acima em '$NAMESPACE'? [y/N]: " confirm
+  printf "%s" "Confirmar rollout restart dos deployments acima em '$NAMESPACE'? [y/N]: "
+  read -r confirm
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "Operação cancelada."
     return 0
@@ -134,7 +181,8 @@ devstack-rollout-crash-pods() {
   fi
 
   local watch_choice
-  read -r -p "Entrar em modo watch pra acompanhar o rollout? [y/N]: " watch_choice
+  printf "%s" "Entrar em modo watch pra acompanhar o rollout? [y/N]: "
+  read -r watch_choice
   if [[ "$watch_choice" =~ ^[Yy]$ ]]; then
     watch "kubectl get pods -n $NAMESPACE | grep -E '($grep_filter)'"
   fi

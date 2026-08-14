@@ -557,7 +557,11 @@ elif [ -n "${_POSITIONAL[0]:-}" ]; then
 elif [ -n "${NAMESPACE:-}" ]; then
     log_info "Usando NAMESPACE do ambiente: $NAMESPACE"
 elif [ -t 1 ] && command -v gum >/dev/null 2>&1; then
-    NAMESPACE=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
+    _ns_list="$(dtb_list_namespaces "Buscando namespaces do cluster...")"
+    if [ -n "$_ns_list" ]; then
+        NAMESPACE=$(echo "$_ns_list" | tr ' ' '\n' | gum filter --height 15 --header="Selecione o namespace:")
+    fi
+    [ -z "$NAMESPACE" ] && read -r -p "Informe o nome do ambiente: " NAMESPACE
 else
     read -r -p "Informe o nome do ambiente: " NAMESPACE
 fi

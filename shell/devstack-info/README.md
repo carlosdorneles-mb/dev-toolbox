@@ -16,7 +16,7 @@ devstack-info -h | --help
 - `<ambiente>` (obrigatório) - namespace do Kubernetes. Aceita posicional ou
   via flag `-n`/`--namespace`. Se omitido, cai no fallback da variável de
   ambiente `$K_ENV`; se nenhum dos dois existir e `gum` estiver instalado,
-  pede via prompt (`gum input`).
+  abre um seletor (`gum filter`) com os namespaces do cluster.
 - `[nome-do-app]` (opcional) - nome do deployment. Aceita posicional ou via
   flag `-a`/`--app`. Se omitido, cai no fallback de `$K_APP`; se nenhum dos
   dois existir e `gum` estiver instalado, abre um seletor com os
@@ -29,9 +29,9 @@ devstack-info -h | --help
    --request-timeout=10s` antes de qualquer outra coisa (com spinner
    `gum spin` em terminal interativo) - falha aqui já sai com erro
    mostrando a saída do `cluster-info`, sem nem pedir ambiente/app.
-2. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via prompt
-   `gum input` se `gum` estiver instalado - o valor digitado é ecoado de
-   volta) - sem ele, sai com erro.
+2. Valida que o ambiente foi informado (direto, via `$K_ENV`, ou via seletor
+   `gum filter` alimentado por `kubectl get namespaces` se `gum` estiver
+   instalado) - sem ele, sai com erro.
 3. Mostra o `kubectl context` atual (`kubectl config current-context`), pra
    deixar claro em qual cluster a consulta vai rodar.
 4. Resolve o app: informado direto, via `$K_APP`, ou escolhido num seletor
