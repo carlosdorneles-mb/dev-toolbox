@@ -60,6 +60,12 @@ devstack-info() {
 }
 
 _dtb_devstack_info_impl() {
+  # zsh indexa arrays a partir de 1 por padrao (bash usa 0) - sem isso,
+  # "_dtb_positional[0]"/"[1]" abaixo sempre vem vazio no zsh, fazendo o
+  # ambiente/app posicional nunca ser reconhecido (cai sempre no seletor
+  # gum). "local_options" escopa o setopt so a esta funcao, desfazendo
+  # sozinho ao retornar - sem precisar de unsetopt manual no fim.
+  [ -n "$ZSH_VERSION" ] && setopt local_options ksh_arrays
   local _dtb_arg_namespace="" _dtb_arg_app="" _dtb_positional=()
   while [ $# -gt 0 ]; do
     case "$1" in

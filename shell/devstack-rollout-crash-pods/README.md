@@ -56,6 +56,7 @@ minha-api
 outro-servico
 
 Confirmar rollout restart dos deployments acima em 'staging'? [y/N]: y
+> Iniciando rollout dos deployments...
 Deployment minha-api reiniciado.
 Deployment outro-servico reiniciado.
 

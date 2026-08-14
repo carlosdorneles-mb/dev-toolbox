@@ -91,6 +91,11 @@ _dtb_devstack_rollout_crash_pods_impl() {
   source "{{ROOT}}/shell/_lib/log.sh"
   source "{{ROOT}}/shell/_lib/kubernetes.sh"
 
+  # zsh indexa arrays a partir de 1 por padrao (bash usa 0) - sem isso,
+  # "_dtb_positional[0]" abaixo sempre vem vazio no zsh, fazendo o
+  # ambiente posicional nunca ser reconhecido (cai sempre no seletor gum).
+  # "local_options" escopa o setopt so a esta funcao.
+  [ -n "$ZSH_VERSION" ] && setopt local_options ksh_arrays
   local _dtb_arg_namespace="" _dtb_positional=()
   while [ $# -gt 0 ]; do
     case "$1" in
