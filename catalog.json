@@ -54,5 +54,12 @@
     "path": "shell/devstack-users/script.sh",
     "entry": "devstack-users",
     "description": "Browses/edits devstack users, subwallets and asset balances via MySQL/PostgreSQL port-forward in an interactive fzf UI"
+  },
+  {
+    "id": "devstack-rollout-crash-pods",
+    "type": "shell",
+    "path": "shell/devstack-rollout-crash-pods/script.sh",
+    "entry": "devstack-rollout-crash-pods",
+    "description": "Rolls out deployments with crashing pods or Running pods with incomplete READY in a namespace, with an optional watch mode"
   }
 ]
