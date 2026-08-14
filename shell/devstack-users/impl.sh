@@ -556,6 +556,8 @@ elif [ -n "${_POSITIONAL[0]:-}" ]; then
     log_info "Usando NAMESPACE da linha de comando: $NAMESPACE"
 elif [ -n "${NAMESPACE:-}" ]; then
     log_info "Usando NAMESPACE do ambiente: $NAMESPACE"
+elif [ -t 1 ] && command -v gum >/dev/null 2>&1; then
+    NAMESPACE=$(gum input --header="Ambiente (namespace) do Kubernetes:" --placeholder="ex: staging")
 else
     read -r -p "Informe o nome do ambiente: " NAMESPACE
 fi

@@ -9,15 +9,18 @@ quem/quando fez o último deploy.
 
 ```bash
 devstack-info <ambiente> [nome-do-app]
+devstack-info -n <ambiente> [-a <nome-do-app>]
 devstack-info -h | --help
 ```
 
-- `<ambiente>` (obrigatório) - namespace do Kubernetes. Se omitido, cai no
-  fallback da variável de ambiente `$K_ENV`; se nenhum dos dois existir e
-  `gum` estiver instalado, pede via prompt (`gum input`).
-- `[nome-do-app]` (opcional) - nome do deployment. Se omitido, cai no
-  fallback de `$K_APP`; se nenhum dos dois existir e `gum` estiver
-  instalado, abre um seletor com os deployments do namespace.
+- `<ambiente>` (obrigatório) - namespace do Kubernetes. Aceita posicional ou
+  via flag `-n`/`--namespace`. Se omitido, cai no fallback da variável de
+  ambiente `$K_ENV`; se nenhum dos dois existir e `gum` estiver instalado,
+  pede via prompt (`gum input`).
+- `[nome-do-app]` (opcional) - nome do deployment. Aceita posicional ou via
+  flag `-a`/`--app`. Se omitido, cai no fallback de `$K_APP`; se nenhum dos
+  dois existir e `gum` estiver instalado, abre um seletor com os
+  deployments do namespace.
 - `-h`/`--help` - mostra a ajuda embutida e sai (ignora `<ambiente>`).
 
 ## Descrição

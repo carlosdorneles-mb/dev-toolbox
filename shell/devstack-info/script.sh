@@ -4,6 +4,7 @@
 # abre um seletor ("gum filter") com os deployments do namespace.
 #
 # Uso: devstack-info <ambiente> [nome-do-app]
+# Uso: devstack-info -n <ambiente> [-a <nome-do-app>]
 # Uso: devstack-info -h | --help
 _dtb_help_devstack_info() {
   if command -v glow >/dev/null 2>&1; then
@@ -70,8 +71,17 @@ devstack-info() {
 }
 
 _dtb_devstack_info_impl() {
-  local ENV=${1:-${K_ENV}}
-  local APP=${2:-${K_APP}}
+  local _dtb_arg_namespace="" _dtb_arg_app="" _dtb_positional=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -n|--namespace) _dtb_arg_namespace="$2"; shift 2 ;;
+      -a|--app) _dtb_arg_app="$2"; shift 2 ;;
+      *) _dtb_positional+=("$1"); shift ;;
+    esac
+  done
+
+  local ENV=${_dtb_arg_namespace:-${_dtb_positional[0]:-${K_ENV}}}
+  local APP=${_dtb_arg_app:-${_dtb_positional[1]:-${K_APP}}}
 
   # Cores (desligadas se stdout não for terminal, ou com NO_COLOR setado -
   # mesma convenção do resto do dev-toolbox, ver shell/_lib/log.sh)
