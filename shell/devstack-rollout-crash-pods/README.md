@@ -1,8 +1,9 @@
 # devstack-rollout-crash-pods
 
 Reinicia (`kubectl rollout restart`) os deployments de um namespace que
-tenham pods em crash/erro, ou pods `Running` com READY incompleto (ex:
-`0/1` em vez de `1/1`).
+tenham pods em crash/erro, pods `Running` com READY incompleto (ex: `0/1`
+em vez de `1/1`), ou pods presos em `Terminating`/`PodInitializing`/
+`Completed`/`ContainerCreating` há mais de 2min.
 
 ## Uso
 
@@ -24,14 +25,18 @@ devstack-rollout-crash-pods -h | --help
    `devstack-info`/`devstack-users`).
 2. Valida o namespace (direto, via flag, ou seletor `gum filter` alimentado
    por `kubectl get namespaces`) e confere que ele existe no cluster.
-3. Varre `kubectl get pods -n <ambiente>` por dois grupos de problema:
+3. Varre `kubectl get pods -n <ambiente>` por três grupos de problema:
    - pods fora de `Running`/`Terminating`/`PodInitializing`/`Completed`/
      `ContainerCreating` (crash/erro);
-   - pods `Running` com READY diferente do total (ex: `0/1`).
-   Em ambos, o nome do deployment é derivado removendo o sufixo
+   - pods `Running` com READY diferente do total (ex: `0/1`);
+   - pods em `Terminating`/`PodInitializing`/`Completed`/
+     `ContainerCreating` há mais de 2min (`AGE` da coluna do `kubectl get
+     pods`, convertido pra segundos) - normal se recente (pod
+     subindo/descendo), sinal de travamento se persiste.
+   Em todos, o nome do deployment é derivado removendo o sufixo
    `-<replicaset>-<pod>` do nome do pod.
-4. Junta os deployments únicos dos dois grupos; se não houver nenhum, avisa
-   e sai sem fazer nada.
+4. Junta os deployments únicos dos três grupos; se não houver nenhum,
+   avisa e sai sem fazer nada.
 5. Lista os deployments encontrados e pede confirmação (`[y/N]`) antes de
    rodar `kubectl rollout restart deployment/<nome> -n <ambiente>` em cada
    um.

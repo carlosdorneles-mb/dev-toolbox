@@ -1,8 +1,9 @@
 # Comando "devstack-rollout-crash-pods": reinicia (rollout restart) os
-# deployments de um namespace que tenham pods em crash/erro, ou pods
-# "Running" com READY incompleto (ex: 0/1 em vez de 1/1). Com gum
-# instalado, ambiente omitido abre um seletor ("gum filter") com os
-# namespaces do cluster.
+# deployments de um namespace que tenham pods em crash/erro, pods
+# "Running" com READY incompleto (ex: 0/1 em vez de 1/1), ou pods presos
+# em Terminating/PodInitializing/Completed/ContainerCreating ha mais de
+# 2min. Com gum instalado, ambiente omitido abre um seletor ("gum filter")
+# com os namespaces do cluster.
 #
 # Uso: devstack-rollout-crash-pods [ambiente]
 # Uso: devstack-rollout-crash-pods -n <ambiente>
@@ -17,10 +18,12 @@ Uso:
 
 Descrição:
   Varre o namespace por pods fora de Running/Terminating/PodInitializing/
-  Completed/ContainerCreating (crash/erro) e por pods Running com READY
-  diferente do total (ex: 0/1). Junta os deployments únicos encontrados,
-  confirma e roda "kubectl rollout restart" em cada um; ao final, oferece
-  entrar em modo watch pra acompanhar o rollout.
+  Completed/ContainerCreating (crash/erro), por pods Running com READY
+  diferente do total (ex: 0/1), e por pods presos em Terminating/
+  PodInitializing/Completed/ContainerCreating ha mais de 2min. Junta os
+  deployments únicos encontrados, confirma e roda "kubectl rollout
+  restart" em cada um; ao final, oferece entrar em modo watch pra
+  acompanhar o rollout.
 
 Opções:
   -n, --namespace <ns>   namespace do Kubernetes (alternativa ao posicional)
@@ -49,6 +52,35 @@ _dtb_devstack_rollout_crash_pods_get_ready_mismatch() {
       d = $1
       sub(/-[^-]*-[^-]*$/, "", d)
       print d
+    }' | sort -u
+}
+
+# Deployments com pod preso em Terminating/PodInitializing/Completed/
+# ContainerCreating ha mais de 2min - esses estados sao normais quando
+# recentes (pod subindo/descendo), mas indicam travamento se persistem.
+# AGE (coluna 5 do "kubectl get pods") usa formato tipo "1h2m"/"3d5h"/
+# "90s", somado em segundos pra comparar com o limite.
+_dtb_devstack_rollout_crash_pods_get_stuck_creating() {
+  local namespace="$1"
+  kubectl get pods -n "$namespace" --no-headers 2>/dev/null | awk '
+    $3 == "Terminating" || $3 == "PodInitializing" || $3 == "Completed" || $3 == "ContainerCreating" {
+      age = $5
+      seconds = 0
+      while (match(age, /[0-9]+[dhms]/)) {
+        tok = substr(age, RSTART, RLENGTH)
+        val = tok + 0
+        unit = substr(tok, length(tok), 1)
+        if (unit == "d") seconds += val * 86400
+        else if (unit == "h") seconds += val * 3600
+        else if (unit == "m") seconds += val * 60
+        else if (unit == "s") seconds += val
+        age = substr(age, RSTART + RLENGTH)
+      }
+      if (seconds >= 120) {
+        d = $1
+        sub(/-[^-]*-[^-]*$/, "", d)
+        print d
+      }
     }' | sort -u
 }
 
@@ -127,22 +159,25 @@ _dtb_devstack_rollout_crash_pods_impl() {
 
   dtb_check_namespace_exists "$NAMESPACE" || return 1
 
-  local deployments_crash deployments_ready_mismatch deployments_to_restart
-  local _dtb_tmp_crash _dtb_tmp_mismatch
+  local deployments_crash deployments_ready_mismatch deployments_stuck_creating deployments_to_restart
+  local _dtb_tmp_crash _dtb_tmp_mismatch _dtb_tmp_stuck
   _dtb_tmp_crash="$(mktemp)"
   _dtb_tmp_mismatch="$(mktemp)"
+  _dtb_tmp_stuck="$(mktemp)"
   {
     _dtb_devstack_rollout_crash_pods_get_crash "$NAMESPACE" > "$_dtb_tmp_crash"
     _dtb_devstack_rollout_crash_pods_get_ready_mismatch "$NAMESPACE" > "$_dtb_tmp_mismatch"
+    _dtb_devstack_rollout_crash_pods_get_stuck_creating "$NAMESPACE" > "$_dtb_tmp_stuck"
   } &
   dtb_wait_gum_pid "Buscando pods com problema em '$NAMESPACE'..." "$!"
   deployments_crash="$(cat "$_dtb_tmp_crash")"
   deployments_ready_mismatch="$(cat "$_dtb_tmp_mismatch")"
-  rm -f "$_dtb_tmp_crash" "$_dtb_tmp_mismatch"
-  deployments_to_restart="$(printf '%s\n%s\n' "$deployments_crash" "$deployments_ready_mismatch" | grep -v '^$' | sort -u)"
+  deployments_stuck_creating="$(cat "$_dtb_tmp_stuck")"
+  rm -f "$_dtb_tmp_crash" "$_dtb_tmp_mismatch" "$_dtb_tmp_stuck"
+  deployments_to_restart="$(printf '%s\n%s\n%s\n' "$deployments_crash" "$deployments_ready_mismatch" "$deployments_stuck_creating" | grep -v '^$' | sort -u)"
 
   if [ -z "$deployments_to_restart" ]; then
-    dtb_log_ok "Nenhum pod em crash e nenhum Running com READY incompleto em '$NAMESPACE'."
+    dtb_log_ok "Nenhum pod em crash, Running com READY incompleto ou preso em Terminating/PodInitializing/Completed/ContainerCreating (>2min) em '$NAMESPACE'."
     return 0
   fi
 
@@ -151,6 +186,10 @@ _dtb_devstack_rollout_crash_pods_impl() {
   if [ -n "$deployments_ready_mismatch" ]; then
     echo -e "\n${_DTB_YELLOW}Incluídos: pod(s) Running com READY ≠ total (ex: não 1/1):${_DTB_RESET}"
     echo "$deployments_ready_mismatch"
+  fi
+  if [ -n "$deployments_stuck_creating" ]; then
+    echo -e "\n${_DTB_YELLOW}Incluídos: pod(s) presos em Terminating/PodInitializing/Completed/ContainerCreating há mais de 2min:${_DTB_RESET}"
+    echo "$deployments_stuck_creating"
   fi
 
   echo
