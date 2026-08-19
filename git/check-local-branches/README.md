@@ -34,13 +34,18 @@ Branch com upstream remoto sumido (`git branch -vv` mostra `[gone]`) é
 sinal extra, mostrado na coluna `NOTA` (não em `MOTIVO`) - não é usado
 sozinho pra decidir merge, só reforça o resultado dos 3 métodos acima.
 
+Branch checked out em outro worktree (`git worktree list --porcelain`)
+marca `🌳 worktree` na coluna `NOTA` - `git branch -D` falha nela mesmo
+sem estar "atual", então é excluída de `any_deletable`/candidatas de
+`--delete` (pulada com aviso, igual à branch atual).
+
 `DEFASAGEM` mostra quantos commits a branch está atrás da raiz
 (`git rev-list --count <branch>..<raiz>`) - "em dia" quando 0, útil pra
 saber se uma branch não-mergeada só está velha ou já ficou pra trás de
 verdade.
 
 **stale**: idade calculada pela data do último commit da branch
-(`git log -1 --format=%ct`) - marca `⚠ stale` na coluna `NOTA` quando
+(`git log -1 --format=%ct`) - marca `🟡 stale` na coluna `NOTA` quando
 maior que `--stale-days` (default: 90), independente de estar mergeada
 ou não. `--only-merged`/`--only-stale` filtram exibição e candidatos de
 `--delete` pro respectivo critério (AND quando os dois são passados
@@ -70,8 +75,8 @@ precisa passar `--only-stale` explicitamente pra isso entrar no critério
 seguro. Sem `--yes`, qualquer candidata (mergeada, stale, ou nenhuma das
 duas) aparece no seletor `gum choose` pra escolha manual - a decisão de
 apagar uma branch fora do critério seguro sempre passa por revisão
-humana ali. Nunca deleta a branch raiz nem a branch com checkout no
-momento (protegida pelo próprio git contra deleção).
+humana ali. Nunca deleta a branch raiz, a branch com checkout no momento,
+nem branch checked out em outro worktree (`🌳 worktree`).
 
 Enquanto verifica (fetch + consulta PR por branch), mostra um spinner
 via `gum spin` com o texto "verificando branches locais..." (só em
@@ -92,7 +97,7 @@ estar desatualizado).
 | `--stale-days N` | idade em dias do último commit acima da qual marca "stale" (default: 90) |
 | `--no-fetch` | pula o `git fetch` antes de comparar |
 | `--no-color` | desabilita cores (mesmo efeito de `NO_COLOR=1`) |
-| `--json` | array JSON com `{name, merged, reasons, gone, age_days, stale}` por branch (exige `jq`) |
+| `--json` | array JSON com `{name, merged, reasons, gone, age_days, stale, worktree}` por branch (exige `jq`) |
 | `-h` | mostra a ajuda embutida |
 
 ## Exemplos
@@ -124,14 +129,16 @@ Deleted branch fix/promotions-mail-push-campaign-exclusion (was 621e441).
 $ git check-local-branches --json
 [
   {"name": "fix/promotions-mail-push-campaign-exclusion", "merged": true,
-   "reasons": ["PR merged"], "gone": true, "age_days": 21, "stale": false},
+   "reasons": ["PR merged"], "gone": true, "age_days": 21, "stale": false,
+   "worktree": false},
   {"name": "feat/promotions-autonomous-process", "merged": false,
-   "reasons": [], "gone": false, "age_days": 2, "stale": false}
+   "reasons": [], "gone": false, "age_days": 2, "stale": false,
+   "worktree": true}
 ]
 
 $ git check-local-branches --only-stale --stale-days 30
 STATUS  BRANCH               MOTIVO  ÚLTIMO COMMIT  DEFASAGEM  NOTA
--       chore/old-experiment  -       4 months ago   3 commits atrás  ⚠ stale
+-       chore/old-experiment  -       4 months ago   3 commits atrás  🟡 stale
 
 $ git check-local-branches --delete --yes
 # sem --only-stale: "seguro" = só mergeada. chore/old-experiment (stale,

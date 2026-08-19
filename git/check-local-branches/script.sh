@@ -109,6 +109,23 @@ real_current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 mapfile -t local_branches < <(git for-each-ref --sort=committerdate --format='%(refname:short)' refs/heads/)
 
+# branches checked out em OUTRO worktree (git branch -D falha nelas,
+# "used by worktree") - o --porcelain lista o proprio worktree atual
+# tambem (sempre o primeiro bloco), entao pula o bloco cujo path bate com
+# o toplevel de onde o comando esta rodando; senao a branch atual (que
+# nunca esta "em outro worktree", so no checkout normal daqui mesmo) seria
+# marcada como worktree por engano
+own_toplevel="$(git rev-parse --show-toplevel 2>/dev/null)"
+declare -A worktree_branches
+cur_wt_path=""
+while IFS= read -r line; do
+  if [[ "$line" == worktree\ * ]]; then
+    cur_wt_path="${line#worktree }"
+  elif [[ "$line" == branch\ refs/heads/* ]] && [[ "$cur_wt_path" != "$own_toplevel" ]]; then
+    worktree_branches["${line#branch refs/heads/}"]=1
+  fi
+done < <(git worktree list --porcelain 2>/dev/null)
+
 results_name=()
 for b in "${local_branches[@]}"; do
   [[ "$b" == "$root_branch" ]] && continue
@@ -216,6 +233,14 @@ for i in "${!results_name[@]}"; do
   results_stale+=("$stale")
 done
 
+results_worktree=()
+for i in "${!results_name[@]}"; do
+  b="${results_name[$i]}"
+  wt=0
+  [[ -n "${worktree_branches[$b]:-}" ]] && wt=1
+  results_worktree+=("$wt")
+done
+
 (( checking_msg )) && printf -- "\r\033[2K" >&2
 
 if (( json_mode )); then
@@ -232,9 +257,10 @@ if (( json_mode )); then
       --argjson gone "$( (( results_gone[i] )) && echo true || echo false )" \
       --arg age_days "${results_age_days[$i]}" \
       --argjson stale "$( (( results_stale[i] )) && echo true || echo false )" \
+      --argjson worktree "$( (( results_worktree[i] )) && echo true || echo false )" \
       '{name: $name, merged: $merged, reasons: $reasons, gone: $gone,
         age_days: ($age_days | if . == "" then null else (. | tonumber) end),
-        stale: $stale}')")
+        stale: $stale, worktree: $worktree}')")
   done
   printf '%s\n' "${json_items[@]}" | jq -s '.'
   exit 0
@@ -248,7 +274,7 @@ for i in "${!results_name[@]}"; do
   (( only_stale )) && (( ! results_stale[i] )) && continue
   matched_count=$(( matched_count + 1 ))
   b="${results_name[$i]}"
-  [[ "$b" != "$real_current" ]] && any_deletable=1
+  [[ "$b" != "$real_current" ]] && (( ! results_worktree[i] )) && any_deletable=1
 
   last_commit="$(git log -1 --format=%cr "$b" 2>/dev/null)"
   [[ -z "$last_commit" ]] && last_commit="desconhecido"
@@ -263,8 +289,9 @@ for i in "${!results_name[@]}"; do
   fi
 
   nota=""
-  (( results_stale[i] )) && nota="⚠ stale"
-  (( results_gone[i] )) && nota="${nota:+$nota, }⚠ upstream sumiu"
+  (( results_stale[i] )) && nota="🟡 stale"
+  (( results_gone[i] )) && nota="${nota:+$nota, }🟡 upstream sumiu"
+  (( results_worktree[i] )) && nota="${nota:+$nota, }🌳 worktree"
   [[ "$b" == "$real_current" ]] && nota="${nota:+$nota, }branch atual"
 
   if (( results_merged[i] )); then
@@ -327,6 +354,14 @@ if (( delete_mode )); then
         gum log -l warn "pulando '$b': é a branch atual, de checkout"
       else
         echo "${YELLOW}pulando '$b': e a branch atual, de checkout${RESET}" >&2
+      fi
+      continue
+    fi
+    if (( results_worktree[i] )); then
+      if (( is_tty )) && command -v gum &>/dev/null; then
+        gum log -l warn "pulando '$b': checked out em outro worktree"
+      else
+        echo "${YELLOW}pulando '$b': checked out em outro worktree${RESET}" >&2
       fi
       continue
     fi
