@@ -94,7 +94,7 @@ $ git check-remote-branches org/repo
 STATUS               BRANCH             CRIADA POR  ATUALIZADA POR  IDADE            FLAGS
 MERGED [PR #120]     fix/old-bugfix     joana       carlos          45 dias atrás
 - [PR aberta #130]   feat/wip-thing     carlos      carlos          2 dias atrás
-- [sem PR]           chore/abandoned    pedro       pedro           210 dias atrás   ⚠ stale
+- [sem PR]           chore/abandoned    pedro       pedro           210 dias atrás   🟡 stale
 
 $ git check-remote-branches org/repo --only-merged --delete
 STATUS            BRANCH          CRIADA POR  ATUALIZADA POR  IDADE

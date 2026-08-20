@@ -224,14 +224,14 @@ for entry in "${DEPS[@]}"; do
 
   current_version="$($version_cmd 2>&1 | _extract_version || true)"
   if [[ -z "$current_version" ]]; then
-    echo "${YELLOW}⚠${RESET} $bin instalado, mas não consegui detectar a versão - pulando checagem de versão."
+    echo "${YELLOW}🟡${RESET} $bin instalado, mas não consegui detectar a versão - pulando checagem de versão."
     continue
   fi
 
   if _version_ge "$current_version" "$min_version"; then
     echo "${GREEN}✔${RESET} $bin ${DIM}$current_version${RESET} ${GREEN}ok${RESET} ${DIM}(mínimo: $min_version)${RESET}"
   else
-    echo "${YELLOW}⚠${RESET} ${BOLD}$bin${RESET} desatualizado: ${DIM}$current_version${RESET} < $min_version"
+    echo "${YELLOW}🟡${RESET} ${BOLD}$bin${RESET} desatualizado: ${DIM}$current_version${RESET} < $min_version"
     missing_or_outdated=1
     (( CHECK_ONLY )) && continue
 
@@ -249,7 +249,7 @@ for entry in "${DEPS[@]}"; do
 done
 
 if [[ "$OS" != "macos" ]] && ! _has_clipboard_tool; then
-  echo "${YELLOW}⚠${RESET} nenhuma ferramenta de clipboard encontrada ${DIM}(xclip/xsel/wl-copy - opcional, usado por CTRL-Y em devstack-users)${RESET}"
+  echo "${YELLOW}🟡${RESET} nenhuma ferramenta de clipboard encontrada ${DIM}(xclip/xsel/wl-copy - opcional, usado por CTRL-Y em devstack-users)${RESET}"
   if (( ! CHECK_ONLY )); then
     case "$OS" in
       ubuntu)
@@ -279,7 +279,7 @@ fi
 
 if (( missing_or_outdated )); then
   if (( CHECK_ONLY )); then
-    echo "${YELLOW}⚠ algumas dependências faltam ou estão desatualizadas (ver acima).${RESET}"
+    echo "${YELLOW}🟡 algumas dependências faltam ou estão desatualizadas (ver acima).${RESET}"
     exit 1
   fi
   echo "${GREEN}${BOLD}✔ dependências verificadas.${RESET}"

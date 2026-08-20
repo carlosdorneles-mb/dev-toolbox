@@ -339,7 +339,7 @@ for b in "${branch_names[@]}"; do
   fi
 
   flags=""
-  [[ "${is_stale[$b]}" == "1" ]] && flags="${YELLOW}⚠ stale${RESET}"
+  [[ "${is_stale[$b]}" == "1" ]] && flags="${YELLOW}🟡 stale${RESET}"
   if [[ "${branch_protected[$b]}" == "true" ]]; then
     flags="${flags:+$flags }[protected]"
   fi

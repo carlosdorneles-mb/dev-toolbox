@@ -72,7 +72,7 @@ else
   APPROVE_MARK="✓"  # emoji tem cor propria (nao respeita NO_COLOR) - sem cor usa so ascii
 fi
 
-# aviso em stderr, amarelo + ⚠ (emoji tem cor propria, sempre aparece mesmo
+# aviso em stderr, amarelo + 🟡 (emoji tem cor propria, sempre aparece mesmo
 # com --no-color/NO_COLOR - so a cor do texto some, igual APPROVE_MARK acima).
 # --no-warning silencia tudo (util em script que so quer a cadeia, sem ruido).
 # gum e so um enhancement aqui (nao obrigatorio, ao contrario de
@@ -84,7 +84,7 @@ _warn() {
   if (( is_tty )) && command -v gum &>/dev/null; then
     gum log -l warn "$*"
   else
-    echo "⚠ ${YELLOW}aviso: $*${RESET}" >&2
+    echo "🟡 ${YELLOW}aviso: $*${RESET}" >&2
   fi
 }
 
